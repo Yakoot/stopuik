@@ -209,6 +209,7 @@
       resetForm() {
         this.$refs.reportForm.resetFields();
         this.agreement = false;
+        this.formData.uik_member_status = "Не определён";
       },
       phoneBlur() {
         this.$refs.reportForm.validateField('phone')
