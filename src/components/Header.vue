@@ -1,8 +1,11 @@
 <template>
   <div class="header">
     <div class="header-title">
-      <div class="first-title">БАРЬЕР ФАЛЬСИФИКАТОРА</div>
-      <div class="second-title">Реестр нарушений избирательного законодательства</div>
+      <div class="logo-row">
+        <div class="first-title">РЕЕСТР НАРУШЕНИЙ</div>
+        <img src="../assets/images/logo-head.png" srcset="../assets/images/logo-head@2x.png 2x, ../assets/images/logo-head@3x.png 3x" height="20">
+      </div>
+      <div class="second-title">Реестр нарушений избирательного законодательства членами УИК</div>
       <div class="third-title">Участковые избирательные коммисии 2011—2018</div>
     </div>
     <Region :regions="regions"
@@ -37,8 +40,13 @@
     flex-direction: row
     justify-content: space-between
 
+  .logo-row
+    display: flex
+    flex-direction: row
+    img
+      margin-left: 20px
+
   .header-title
-    height: 90px
     div
       text-align: left
 

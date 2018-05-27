@@ -1,16 +1,14 @@
 <template>
   <div id="app">
-    <el-container>
-      <el-header height="220px">
-        <Header :regions="regions"
-                :currentRegion="currentRegion"
-                @change-region="changeRegion"></Header>
-        <Menu @openReport="openReport"/>
-      </el-header>
-      <el-main>
-        <router-view @openReport="openReport"></router-view>
-      </el-main>
-    </el-container>
+    <div>
+      <Header :regions="regions"
+              :currentRegion="currentRegion"
+              @change-region="changeRegion"></Header>
+      <Menu @openReport="openReport"/>
+    </div>
+    <div>
+      <router-view @openReport="openReport"></router-view>
+    </div>
     <ReportModal :visible.sync="reportVisible" @closeReport="reportVisible = false"/>
   </div>
 </template>

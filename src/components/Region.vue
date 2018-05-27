@@ -1,18 +1,18 @@
 <template>
   <div class="region-block">
     <div class="current-region">{{ currentRegion }}</div>
-    <el-dropdown @command="changeRegion">
-    <span class="el-dropdown-link">
-      выбрать другой город
-    </span>
-      <el-dropdown-menu slot="dropdown">
-        <el-dropdown-item
-            v-for="region in regions"
-            :key="region"
-            :class="{ active: region === currentRegion }"
-            :command="region">{{ region }}</el-dropdown-item>
-      </el-dropdown-menu>
-    </el-dropdown>
+    <!--<el-dropdown @command="changeRegion">-->
+    <!--<span class="el-dropdown-link">-->
+      <!--выбрать другой город-->
+    <!--</span>-->
+      <!--<el-dropdown-menu slot="dropdown">-->
+        <!--<el-dropdown-item-->
+            <!--v-for="region in regions"-->
+            <!--:key="region"-->
+            <!--:class="{ active: region === currentRegion }"-->
+            <!--:command="region">{{ region }}</el-dropdown-item>-->
+      <!--</el-dropdown-menu>-->
+    <!--</el-dropdown>-->
   </div>
 </template>
 <script>

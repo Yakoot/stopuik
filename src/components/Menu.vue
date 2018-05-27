@@ -1,14 +1,31 @@
 <template>
-  <div class="menu">
-    <el-menu
-        :default-active="activeIndex"
-        class="el-menu"
-        mode="horizontal"
-        :router="true">
-      <el-menu-item index="/about">О ПРОЕКТЕ</el-menu-item>
-      <el-menu-item index="/registry">РЕЕСТР НАРУШЕНИЙ</el-menu-item>
-    </el-menu>
-    <el-button class="report" type="primary" @click="openReportModal">СООБЩИТЬ О НАРУШЕНИИ</el-button>
+  <div>
+    <mq-layout mq="sm">
+      <div class="menu-sm">
+        <el-menu
+            :default-active="activeIndex"
+            class="el-menu"
+            mode="vertical"
+            :router="true">
+          <el-menu-item index="/registry">РЕЕСТР НАРУШЕНИЙ</el-menu-item>
+          <el-menu-item index="/about">О ПРОЕКТЕ</el-menu-item>
+        </el-menu>
+        <el-button class="report" type="primary" @click="openReportModal">СООБЩИТЬ О НАРУШЕНИИ</el-button>
+      </div>
+    </mq-layout>
+    <mq-layout mq="md+">
+      <div class="menu">
+        <el-menu
+            :default-active="activeIndex"
+            class="el-menu"
+            mode="horizontal"
+            :router="true">
+          <el-menu-item index="/registry">РЕЕСТР НАРУШЕНИЙ</el-menu-item>
+          <el-menu-item index="/about">О ПРОЕКТЕ</el-menu-item>
+        </el-menu>
+        <el-button class="report" type="primary" @click="openReportModal">СООБЩИТЬ О НАРУШЕНИИ</el-button>
+      </div>
+    </mq-layout>
   </div>
 </template>
 <script>
@@ -19,7 +36,7 @@
     },
     computed: {
       activeIndex() {
-        return this.$route.path === "/" ? "/about" : this.$route.path
+        return this.$route.path === "/" ? "/registry" : this.$route.path
       }
     },
     methods: {
@@ -31,12 +48,16 @@
 </script>
 <style lang="sass" scoped>
   @import '../assets/style/theme.sass'
+  .menu-sm
+    display: flex
+    flex-direction: column
+    justify-content: space-between
   .menu
     display: flex
     flex-direction: row
     justify-content: space-between
   .el-menu
-    padding-left: 40px
+    padding-left: 2%
     background-color: #f7f7f7
     flex-grow: 1
     .el-menu-item
@@ -47,7 +68,6 @@
         family: OpenSans
         size: 14px
         weight: bold
-      letter-spacing: 1.4px
       &.is-active
         color: $color-brick
   .report
@@ -55,5 +75,4 @@
     font-size: 14px
     font-weight: bold
     color: white
-    letter-spacing: 1.4px
 </style>

@@ -68,7 +68,7 @@
         <el-checkbox v-model="agreement">
           <span class="agreement-text">
             Я даю согласие на обработку указанных в этой форме для отправки данных моих персональных данных общественной организации «Наблюдатели Петербурга» (отозвать согласие можно, написав письмо по адресу
-            <a href="mailto:info+stopuik@spbelect.org">info+stopuik@spbelect.org</a>)
+            <a href="mailto:info+blacklist@spbelect.org">info+blacklist@spbelect.org</a>)
           </span>
         </el-checkbox>
       <!--<el-form-item label="Ссылка на видео или иные, доказывающие нарушение материалы">-->
@@ -181,7 +181,7 @@
           const fd = {...this.formData};
           fd.phone = `+7${fd.phone}`;
           if (valid) {
-            axios.post('http://registry.tbrd.ru/api.php', fd, {
+            axios.post('/api.php', fd, {
               params: {
                 method: 'add',
               }

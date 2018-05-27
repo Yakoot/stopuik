@@ -6,15 +6,24 @@ import About from './components/About'
 import Registry from './components/Registry'
 import './assets/style/element-variables.sass'
 import VueMask from 'v-mask'
+import VueMq from 'vue-mq'
 
 Vue.config.productionTip = false;
 Vue.use(ElementUI);
 Vue.use(VueRouter);
 Vue.use(VueMask);
+Vue.use(VueMq, {
+  breakpoints: { // default breakpoints - customize this
+    sm: 670,
+    md: 1044,
+    lg: 1366,
+    xl: Infinity
+  }
+})
 
 
 const routes = [
-  { path: '', component: About },
+  { path: '', component: Registry },
   { path: '/about', component: About },
   { path: '/registry', component: Registry }
 ]

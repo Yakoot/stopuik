@@ -1,14 +1,16 @@
 <template>
   <div class="registry"
        v-loading="loading">
-    <RegistryFilter
-        :data="letters"
-        @select-letter="selectLetter"/>
-    <LetterBlock
-        v-for="(item, key) in items"
-        :key="key"
-        :letter="key"
-        :items="item"/>
+    <div class="registry-filter">
+      <a v-for="item in letters" :key="item" class="filter-item" :href="'#' + item">{{ item }}</a>
+    </div>
+    <el-collapse accordion v-model="activeName">
+      <LetterBlock
+          v-for="(item, key) in items"
+          :key="key"
+          :letter="key"
+          :items="item"/>
+    </el-collapse>
   </div>
 </template>
 <script>
@@ -22,24 +24,19 @@
       return {
         data: {},
         letters: [],
-        activeLetter: "",
-        loading: true
+        loading: true,
+        activeName: []
       };
     },
     computed: {
       items() {
-        if (this.activeLetter !== "") {
-          const data = {};
-          data[this.activeLetter] = this.data[this.activeLetter];
-          return data;
-        }
         return this.data
       }
     },
     props: [],
     methods: {
       getData() {
-        axios.get("http://registry.tbrd.ru/api.php", {
+        axios.get("/api.php", {
           params: {
             method: "getData",
             sheet: "Санкт-Петербург"
@@ -51,9 +48,6 @@
             this.loading = false
           })
       },
-      selectLetter(letter) {
-        this.activeLetter = letter
-      }
     },
     created() {
       this.getData()
@@ -65,7 +59,26 @@
   };
 </script>
 <style lang="sass">
+  @import '../assets/style/theme.sass'
   .registry
-    margin-left: 40px
+    margin: 20px 2% 0 2%
+
+  .registry-filter
+    display: flex
+    flex-flow: row wrap
+  .filter-item
+    height: 30px
+    min-width: 30px
+    font-size: 18px
+    font-weight: bold
+    background-color: #f7f7f7
+    display: flex
+    align-items: center
+    justify-content: center
+    cursor: pointer
+    margin: 10px 6px 0 0
+    &:hover
+      background-color: $color-brick
+      color: white
 </style>
 

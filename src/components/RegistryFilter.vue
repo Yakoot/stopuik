@@ -1,7 +1,6 @@
 <template>
   <div class="registry-filter">
-    <div v-for="item in letters" :key="item.letter" class="filter-item" :class="{ active: item.isActive }" @click="selectLetter(item)">{{ item.letter }}</div>
-    <div class="filter-item flush" @click="flushFilter" v-if="letters.length > 0">Сбросить</div>
+    <a v-for="item in letters" :key="item.letter" class="filter-item" :href="'#' + item.letter">{{ item.letter }}</a>
   </div>
 </template>
 <script>
@@ -20,20 +19,10 @@
       "data": "createLetters"
     },
     methods: {
-      selectLetter(item) {
-        this.letters.forEach(item => item.isActive = false)
-        item.isActive = true
-        this.$emit("select-letter", item.letter)
-      },
-      flushFilter() {
-        this.letters.forEach(item => item.isActive = false)
-        this.$emit("select-letter", "")
-      },
       createLetters() {
         this.data.forEach(letter => {
           this.letters.push({
-            letter: letter,
-            isActive: false
+            letter: letter
           })
         });
       }
@@ -59,9 +48,4 @@
     &:hover
       background-color: $color-brick
       color: white
-    &.active
-      color: $color-brick
-      background-color: unset
-    &.flush
-      padding: 0 10px
 </style>
