@@ -3,10 +3,10 @@
     <div class="header-title">
       <div class="logo-row">
         <div class="first-title">РЕЕСТР НАРУШЕНИЙ</div>
-        <img src="../assets/images/logo-head.png" srcset="../assets/images/logo-head@2x.png 2x, ../assets/images/logo-head@3x.png 3x" height="20">
+        <img src="../assets/images/logo-head.png" height="20">
       </div>
-      <div class="second-title">Реестр нарушений избирательного законодательства членами УИК</div>
-      <div class="third-title">Участковые избирательные коммисии 2011—2018</div>
+      <div class="second-title">Реестр нарушений избирательного законодательства</div>
+      <div class="third-title">Участковые избирательные комиссии 2011—2023</div>
     </div>
     <Region :regions="regions"
             :currentRegion="currentRegion"
@@ -32,35 +32,42 @@
     }
   };
 </script>
-<style lang="sass">
-  @import '../assets/style/theme.sass'
-  div.header
-    padding: 40px
-    display: flex
-    flex-direction: row
-    justify-content: space-between
+<style lang="scss">
+  @import '../assets/style/theme';
+  div.header {
+    padding: 40px;
+    display: flex;
+    justify-content: space-between;
+  }
 
-  .logo-row
-    display: flex
-    flex-direction: row
-    img
-      margin-left: 20px
 
-  .header-title
-    div
-      text-align: left
+  .logo-row {
+    display: flex;
+    img {
+      margin-left: 20px;
+    }
+  }
 
-  .first-title
-    font-family: Lisa
-    font-size: 31px
-    color: $color-brick
+  .header-title {
+    div {
+      text-align: left;
+    }
+  }
 
-  .second-title
-    font-size: 18px
-    color: black
-    margin-top: 10px
+  .first-title {
+    font-family: Lisa;
+    font-size: 31px;
+    color: $color-brick;
+  }
 
-  .third-title
-    font-size: 12px
-    color: $color-grey
+  .second-title {
+    font-size: 18px;
+    color: black;
+    margin-top: 10px;
+  }
+
+  .third-title {
+    font-size: 12px;
+    color: $color-grey;
+  }
 </style>

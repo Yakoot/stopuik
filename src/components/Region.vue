@@ -29,21 +29,25 @@
     }
   };
 </script>
-<style lang="sass">
-  @import '../assets/style/theme.sass'
-  .region-block
-    text-align: right
-  .current-region
-    font-size: 16px
-    font-weight: bold
-    line-height: 1.5
+<style lang="scss" scoped>
+  @import '../assets/style/theme';
+  .region-block {
+    text-align: right;
+  }
+  .current-region {
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1.5;
+  }
 
-  .el-dropdown-link
-    cursor: pointer
-    color: $color-brick
-    font-size: 11px
+  .el-dropdown-link {
+    cursor: pointer;
+    color: $color-brick;
+    font-size: 11px;
+  }
 
-  .el-dropdown-menu__item.active
-    background-color: #f2f2f2
+  .el-dropdown-menu__item.active {
+    background-color: #f2f2f2;
+  }
 
 </style>

@@ -72,19 +72,16 @@
     }
   };
 </script>
-<style lang="sass">
-  @import '../assets/style/theme.sass'
+<style lang="scss">
+  @import '../assets/style/theme';
 
-  .letter-block
-    margin-top: 40px
-    text-align: left
-  .letter
-    font-family: $open-sans
-    font-size: 36px
-    font-weight: 800
-
-  .names
-    column-count: 3
-    margin-top: 20px
-
+  .letter-block {
+    margin-top: 40px;
+    text-align: left;
+  }
+  .letter {
+    font-family: $open-sans;
+    font-size: 36px;
+    font-weight: 800;
+  }
 </style>

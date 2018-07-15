@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css?family=Open+Sans:400,800&subset=cyrillic');
+
+$color-brick: #b92b2b;
+$color-grey: #9b9b9b;
+
+$open-sans: 'Open Sans', sans-serif;
+@font-face {
+  font-family: Lisa;
+  src: url(../assets/fonts/Lisa.otf);
+}
+
+
+@font-face {
+  font-family: FiraSans;
+  src: url(../assets//fonts/FiraSans-Regular.otf);
+}
+
+
+* {
+  font-family: FiraSans, sans-serif;
+}
+
+
+a {
+  color: $color-brick;
+  text-decoration: none;
+}
+
+
+.el-button--primary {
+  background-color: #851E1E !important;
+  &:hover, &:focus {
+    background-color: #B92B2B !important;
+  }
+}

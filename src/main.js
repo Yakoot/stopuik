@@ -4,7 +4,7 @@ import ElementUI from 'element-ui'
 import VueRouter from 'vue-router'
 import About from './components/About'
 import Registry from './components/Registry'
-import './assets/style/element-variables.sass'
+import './assets/style/element-variables.scss'
 import VueMask from 'v-mask'
 import VueMq from 'vue-mq'
 
