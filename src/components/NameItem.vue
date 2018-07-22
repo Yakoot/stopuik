@@ -3,22 +3,26 @@
     <template slot="title">
       <div class="name-item">
         <div class="name">{{ item.name }}</div>
-        <div class="uik">{{years ? years : "Тогда"}}: УИК {{ item.uik }}{{item.tik ? `, ТИК ${item.tik}` : ""}}{{ item.uik_status ? `, ${item.uik_status}` : ""}}</div>
-        <div v-if="item.current_status" class="uik">{{current}}</div>
+        <div v-if="item.current_status" class="status"><span class="status-year">Сейчас: </span>{{getStatusString(item.current_status)}}
+          <el-tooltip v-if="item.current_status.from" class="current-from" :content="item.current_status.from" placement="top">
+            <i class="el-icon-info"></i>
+          </el-tooltip>
+        </div>
+        <div v-for="(status, index) in [...item.old_status].reverse()" :key="index" class="status"><span class="status-year">{{status.year}}: </span>{{getStatusString(status)}}</div>
       </div>
     </template>
     <i class="el-icon-caret-top"></i>
-    <div class="violations">
-      <div class="violations-title">Нарушения</div>
+    <div v-for="(yearViolations, year) in violations" :key="year" class="violations">
+      <div class="violations-title">Нарушения за {{year}} год</div>
       <el-collapse v-model="activeViolations">
         <div
-            v-for="(violation, index) in violations"
-            :key="index"
+            v-for="(violation, index) in yearViolations"
+            :key="year + '_' + index"
             class="violation">
 
-          <el-collapse-item :name="index">
+          <el-collapse-item :name="year + '_' + index">
             <template slot="title">
-              <div class="violation-description">{{ violation.description }}<i :class="activeViolations.includes(index) ? 'el-icon-caret-top' : 'el-icon-caret-bottom'"></i></div>
+              <div class="violation-description">{{ violation.description }}<i :class="activeViolations.includes(year + '_' + index)  ? 'el-icon-caret-top' : 'el-icon-caret-bottom'"></i></div>
             </template>
             <div class="violation-link"
               v-for="(link_item, index) in violation.links"
@@ -39,42 +43,40 @@
     },
     props: ["item"],
     methods: {
-
+      getStatusString(status) {
+        let str = "";
+        if (status.uik_status) {
+          str += `${status.uik_status}`;
+        }
+        if (status.uik) {
+          str += ` УИК ${status.uik},`;
+        }
+        if (status.tik) {
+          str += ` ТИК ${status.tik}`;
+        }
+        return str;
+      }
     },
     computed: {
-      current() {
-        let str = "Сейчас: ";
-        if (this.item.current_year) {
-          str = `${this.item.current_year}: `;
-        }
-        str += `${this.item.current_status} `;
-        if (this.item.current_uik) {
-          str += `, УИК ${this.item.current_uik}`;
-        }
-        if (this.item.current_tik) {
-          str += `, ТИК ${this.item.current_tik}`;
-        }
-        return str
-      },
-      years() {
-        if (this.item.years.length !== 0) {
-          const yearStrings = this.item.years.map(year => {
-            return `${year}`
-          });
-          return yearStrings.join(", ")
-        }
-        return ""
-      },
       violations() {
-        return this.item.violations.map(violation => {
-          return {collapsed: true, ...violation}
-        })
+        return this.item.violations;
       }
     }
   };
 </script>
 <style lang="scss">
   @import '../assets/style/theme';
+
+  .el-tooltip__popper {
+    max-width: 200px;
+    background-color: $color-brick;
+  }
+  .current-from-tooltip {
+    background-color: $color-brick;
+  }
+  .current-from {
+    margin-left: 5px;
+  }
 
   .name-item {
     line-height: normal;
@@ -84,10 +86,13 @@
     font-size: 16px;
     line-height: 1.25;
   }
-  .uik {
+  .status {
     color: #9b9b9b;
     font-size: 12px;
     line-height: 1.5;
+    .status-year {
+      font-weight: bold;
+    }
   }
   .violations {
     padding: 20px;

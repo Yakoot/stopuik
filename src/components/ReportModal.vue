@@ -261,7 +261,7 @@
           const fd = {...this.formData};
           fd.report = fd.report.join(", ");
           if (valid) {
-            axios.post('https://registry.tbrd.ru/api.php', fd, {
+            axios.post('https://blacklist.spbelect.org/api.php', fd, {
               params: {
                 method: 'add',
               }

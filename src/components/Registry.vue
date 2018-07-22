@@ -57,7 +57,7 @@
     props: [],
     methods: {
       getData() {
-        axios.get("https://registry.tbrd.ru/api.php", {
+        axios.get("https://blacklist.spbelect.org/api.php", {
           params: {
             method: "getData",
             sheet: "Санкт-Петербург"
@@ -89,17 +89,17 @@
         let newData = this.data;
         if (this.searchParams.tik) {
           newData = newData.filter(item => {
-            return item.tik === this.searchParams.tik
+            return item.filter_data.tik.includes(this.searchParams.tik)
           })
         }
         if (this.searchParams.uik) {
           newData = newData.filter(item => {
-            return item.uik === this.searchParams.uik
+            return item.filter_data.uik.includes(this.searchParams.uik)
           })
         }
         if (this.searchParams.year) {
           newData = newData.filter(item => {
-            return item.years.includes(this.searchParams.year)
+            return item.filter_data.year.includes(this.searchParams.year)
           })
         }
         if (this.searchParams.name) {
@@ -109,9 +109,7 @@
         }
         if (this.searchParams.report) {
           newData = newData.filter(item => {
-            return item.violations.filter(violation => {
-              return violation.description === this.searchParams.report
-            }).length > 0
+            return item.filter_data.description.includes(this.searchParams.report)
           })
         }
         this.searchLength = newData.length;
