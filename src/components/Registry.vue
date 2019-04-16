@@ -114,7 +114,7 @@
         }
         if (this.searchParams.ikmo) {
           newData = newData.filter(item => {
-            return item.filter_data.ikmo === this.searchParams.ikmo
+            return item.filter_data.ikmo.includes(this.searchParams.ikmo)
           })
         }
         this.searchLength = newData.length;

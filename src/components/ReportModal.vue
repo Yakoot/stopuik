@@ -55,7 +55,7 @@
                                     v-for="(item, index) in ikmo"
                                     :key="index"
                                     :label="item"
-                                    :value="index"/>
+                                    :value="item"/>
                         </el-select>
                     </el-form-item>
                 </el-col>
