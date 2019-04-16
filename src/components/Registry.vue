@@ -112,6 +112,11 @@
             return item.filter_data.description.includes(this.searchParams.report)
           })
         }
+        if (this.searchParams.ikmo) {
+          newData = newData.filter(item => {
+            return item.filter_data.ikmo === this.searchParams.ikmo
+          })
+        }
         this.searchLength = newData.length;
         return newData
       }

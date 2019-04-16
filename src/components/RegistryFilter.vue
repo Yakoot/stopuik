@@ -9,6 +9,7 @@
                        v-model="filters.tik"
                        :default-first-option="true"
                        no-match-text="Нет совпадений"
+                       no-data-text="Нет данных"
                        filterable
                        clearable
                        @change="filter"
@@ -28,6 +29,7 @@
                        v-model="filters.uik"
                        :default-first-option="true"
                        no-match-text="Нет совпадений"
+                       no-data-text="Нет данных"
                        filterable
                        clearable
                        @change="filter"
@@ -47,6 +49,7 @@
                        v-model="filters.year"
                        :default-first-option="true"
                        no-match-text="Нет совпадений"
+                       no-data-text="Нет данных"
                        filterable
                        clearable
                        @change="filter"
@@ -60,12 +63,33 @@
             </el-select>
           </el-form-item>
         </el-col>
-        <el-col :xs="24" :sm="12">
+        <el-col :xs="24" :sm="4">
+          <el-form-item label="ИКМО">
+            <el-select :popper-append-to-body="false"
+                       v-model="filters.ikmo"
+                       :default-first-option="true"
+                       no-match-text="Нет совпадений"
+                       no-data-text="Нет данных"
+                       filterable
+                       clearable
+                       @change="filter"
+                       placeholder="Любой">
+              <el-option
+                      v-for="(item, index) in ikmo"
+                      :key="index"
+                      :label="item"
+                      :value="item">
+              </el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :sm="8">
           <el-form-item label="Вид нарушения">
             <el-select :popper-append-to-body="false"
                        v-model="filters.report"
                        :default-first-option="true"
                        no-match-text="Нет совпадений"
+                       no-data-text="Нет данных"
                        filterable
                        clearable
                        @change="filter"
@@ -106,6 +130,7 @@
   </div>
 </template>
 <script>
+  import ikmo from "../config/ikmo"
   export default {
     data() {
       return {
@@ -114,7 +139,8 @@
           tik: "",
           year: "",
           report: "",
-          name: ""
+          name: "",
+          ikmo: ""
         },
         delayTimer: null
       }
@@ -129,6 +155,9 @@
           return sum
         }, 0);
         return notEmpty !== 0
+      },
+      ikmo() {
+        return ikmo;
       }
     },
     created() {

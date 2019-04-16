@@ -6,7 +6,7 @@
         <img src="../assets/images/logo-head.png" height="20">
       </div>
       <div class="second-title">Реестр нарушений избирательного законодательства</div>
-      <div class="third-title">Участковые избирательные комиссии 2011—2023</div>
+      <div class="third-title">Избирательные комиссии 2011—2023</div>
     </div>
     <Region :regions="regions"
             :currentRegion="currentRegion"
