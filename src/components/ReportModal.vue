@@ -305,7 +305,6 @@
                                 }
                             })
                             .catch(error => {
-                                console.log(error);
                                 this.buttonLoading = false
                             });
                     } else {
