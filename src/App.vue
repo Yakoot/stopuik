@@ -13,10 +13,11 @@
   </div>
 </template>
 
-<script>
-  import Header from "./components/Header";
-  import Menu from "./components/Menu";
-  import ReportModal from "./components/ReportModal";
+<script lang="ts">
+  import {Component, Vue} from 'vue-property-decorator';
+  import Header from "./components/Header.vue";
+  import Menu from "./components/Menu.vue";
+  import ReportModal from "./components/ReportModal.vue";
 
   const regions = [
     "Санкт-Петербург",
@@ -25,28 +26,23 @@
     "Мурманская область",
   ];
 
-  export default {
+  @Component({
     components: {
       Header,
       Menu,
       ReportModal
     },
-    data() {
-      return {
-        reportVisible: false,
-        regions: regions,
-        currentRegion: regions[0]
-      };
-    },
-    props: [],
-    computed: {},
-    methods: {
-      openReport() {
+  })
+  export default class App extends Vue {
+    private reportVisible = false;
+    private regions = regions;
+    private currentRegion: string = regions[0];
+
+    openReport() {
         this.reportVisible = true
-      },
-      changeRegion(region) {
-        this.currentRegion = region
-      }
+    }
+    changeRegion(region: string) {
+        this.currentRegion = region;
     }
   };
 </script>
