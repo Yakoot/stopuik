@@ -25,7 +25,8 @@ Vue.use(VueMq, {
 const routes = [
   { path: '', component: Registry },
   { path: '/about', component: About },
-  { path: '/registry', component: Registry }
+  { path: '/registry', component: Registry },
+  { path: '/index.html', component: Registry }
 ]
 
 const router = new VueRouter({

@@ -75,7 +75,7 @@
                        @change="filter"
                        placeholder="Любой">
               <el-option
-                      v-for="(item, index) in ikmo"
+                      v-for="(item, index) in data.ikmo"
                       :key="index"
                       :label="item"
                       :value="item">
@@ -130,7 +130,6 @@
   </div>
 </template>
 <script>
-  import ikmo from "../config/ikmo"
   export default {
     data() {
       return {
