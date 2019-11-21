@@ -3,12 +3,14 @@
     <template slot="title">
       <div class="name-item">
         <div class="name">{{ item.name }}</div>
+        <!--
         <div v-if="item.current_status" class="status"><span class="status-year">Сейчас: </span>{{getStatusString(item.current_status)}}
           <el-tooltip v-if="item.current_status.from" class="current-from" :content="item.current_status.from" placement="top">
             <i class="el-icon-info"></i>
           </el-tooltip>
         </div>
-        <div v-for="(status, index) in [...item.old_status].reverse()" :key="index" class="status"><span class="status-year">{{status.year}}: </span>{{getStatusString(status)}}</div>
+        -->
+        <div v-for="status in item.status" class="status"><span class="status-year">{{status.year}}: </span>{{getStatusString(status)}}</div>
       </div>
     </template>
     <i class="el-icon-caret-top"></i>
@@ -24,43 +26,45 @@
             <template slot="title">
               <div class="violation-description">{{ violation.description }}<i :class="activeViolations.includes(year + '_' + index)  ? 'el-icon-caret-top' : 'el-icon-caret-bottom'"></i></div>
             </template>
+            <!--
             <div class="violation-link"
               v-for="(link_item, index) in violation.links"
               :key="index"
               v-if="link_item.link"><a :href="link_item.link" target="_blank">{{ link_item.link_description === "" ? "Источник" : link_item.link_description }}</a></div>
+            -->
           </el-collapse-item>
         </div>
       </el-collapse>
     </div>
   </el-collapse-item>
 </template>
-<script>
-  export default {
-    data() {
-      return {
-        activeViolations: []
+<script lang="ts">
+  import {Prop, Vue} from "vue-property-decorator";
+  import {Component} from "vue-property-decorator";
+  import {Crime, SearchResult, UikMemberStatus} from "./Model";
+
+  @Component
+ export default class NamedItem extends Vue {
+    private activeViolations = [];
+
+    @Prop(Object) item: SearchResult | undefined;
+
+    getStatusString(status: UikMemberStatus) {
+      let str = "";
+      if (status.uik_status) {
+        str += `${status.uik_status}`;
       }
-    },
-    props: ["item"],
-    methods: {
-      getStatusString(status) {
-        let str = "";
-        if (status.uik_status) {
-          str += `${status.uik_status}`;
-        }
-        if (status.uik) {
-          str += ` УИК ${status.uik},`;
-        }
-        if (status.tik) {
-          str += ` ТИК ${status.tik}`;
-        }
-        return str;
+      if (status.uik) {
+        str += ` УИК ${status.uik},`;
       }
-    },
-    computed: {
-      violations() {
-        return this.item.violations;
+      if (status.tik) {
+        str += ` ТИК ${status.tik}`;
       }
+      return str;
+    }
+
+    get violations(): {[key: string]: Array<Crime>} {
+      return this.item!!.violations;
     }
   };
 </script>

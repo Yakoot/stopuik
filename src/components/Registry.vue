@@ -18,6 +18,7 @@
   import RegistryFilter from './RegistryFilter.vue'
   import LetterBlock from './LetterBlock.vue'
   import {Component, Vue, Watch} from "vue-property-decorator";
+  import {FilterData, SearchQuery, SearchResponse, SearchResult} from "./Model";
 
   const reportData = [
     "досрочное голосование",
@@ -31,35 +32,6 @@
     "подсчет голосов и установление итогов",
     "избирательная документация"
   ];
-
-  interface SearchResult {
-    filter_data: FilterData;
-    name: string;
-  }
-
-  interface SearchQuery {
-    ikmo?: string;
-    report?: string;
-    name?: string;
-    year?: string;
-    uik?: string;
-    tik?: string;
-  }
-
-  export interface FilterData {
-    description?: Array<string>;
-    ikmo?: Array<string>;
-    year?: Array<string>;
-    uik?: Array<string>;
-    tik?: Array<string>;
-    report?: Array<string>;
-  }
-
-  export interface SearchResponse {
-    data: Array<SearchResult>;
-    filterData: FilterData;
-  }
-
 
   @Component({
     components: {
