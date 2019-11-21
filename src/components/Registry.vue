@@ -60,6 +60,7 @@
     filterData: FilterData;
   }
 
+
   @Component({
     components: {
       RegistryFilter, LetterBlock
@@ -73,13 +74,9 @@
     private filterLoading = false;
     private activeName: Array<String> = [];
     private searchParams: SearchQuery = {};
-    private searchLength?: number;
+    private searchLength: number = 0;
+    private items: {[key: string]: Array<SearchResult>} = {};
 
-    get items() {
-      let data = this.data;
-      data = this.search(data);
-      return this.createLetters(data);
-    }
 
     created() {
       this.getData()
@@ -115,6 +112,7 @@
     filter(data: SearchQuery) {
       this.filterLoading = true;
       this.searchParams = data;
+      this.search([]);
     }
 
     createLetters(data: Array<SearchResult>): { [key: string]: Array<SearchResult>; } {
@@ -134,7 +132,10 @@
       let newData: Array<SearchResult> = [];
       axios.post<SearchResponse>(
           "http://spbelect-blacklist-backend.appspot.com:8080/_ah/api/blacklist/v1/search", this.searchParams
-      ).then(xhr => newData = xhr.data.data);
+      ).then(xhr => {
+        this.items = this.createLetters(xhr.data.data);
+        this.filterLoading = false;
+      });
       // if (this.searchParams.tik) {
       //   const tik = this.searchParams.tik;
       //   newData = newData.filter(item => {
