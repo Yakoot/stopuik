@@ -2,7 +2,7 @@
     <div class="registry">
         <RegistryFilter @filter="filter" :data="filterData" :search-length="searchLength"></RegistryFilter>
         <div v-loading="loading || filterLoading">
-            <el-collapse accordion v-model="activeName">
+            <el-collapse accordion v-model="activeName" @change="fetchViolations">
                 <LetterBlock
                         v-for="(item, key) in items"
                         :key="key"
@@ -54,6 +54,9 @@
       this.getData()
     }
 
+    fetchViolations(activeItem: string) {
+      console.log(activeItem);
+    }
     @Watch("$route")
     getData() {
       axios.get<FilterData>("http://spbelect-blacklist-backend.appspot.com:8080/_ah/api/blacklist/v1/filters")
