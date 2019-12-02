@@ -14,7 +14,7 @@
       </div>
     </template>
     <i class="el-icon-caret-top"></i>
-    <div v-for="(yearViolations, year) in violations" :key="year" class="violations">
+    <div v-for="(yearViolations, year) in item.violations" :key="year" class="violations">
       <div class="violations-title">Нарушения за {{year}} год</div>
       <el-collapse v-model="activeViolations">
         <div
@@ -26,12 +26,10 @@
             <template slot="title">
               <div class="violation-description">{{ violation.description }}<i :class="activeViolations.includes(year + '_' + index)  ? 'el-icon-caret-top' : 'el-icon-caret-bottom'"></i></div>
             </template>
-            <!--
             <div class="violation-link"
               v-for="(link_item, index) in violation.links"
               :key="index"
               v-if="link_item.link"><a :href="link_item.link" target="_blank">{{ link_item.link_description === "" ? "Источник" : link_item.link_description }}</a></div>
-            -->
           </el-collapse-item>
         </div>
       </el-collapse>
@@ -39,7 +37,7 @@
   </el-collapse-item>
 </template>
 <script lang="ts">
-  import {Prop, Vue} from "vue-property-decorator";
+  import {Prop, Vue, Watch} from "vue-property-decorator";
   import {Component} from "vue-property-decorator";
   import {Crime, SearchResult, UikMemberStatus} from "./Model";
 
@@ -63,9 +61,9 @@
       return str;
     }
 
-    get violations(): {[key: string]: Array<Crime>} {
-      return this.item!!.violations;
-    }
+    // get violations(): {[key: string]: Array<Crime>} {
+    //   return this.item!!.violations;
+    // }
   };
 </script>
 <style lang="scss">

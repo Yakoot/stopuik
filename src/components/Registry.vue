@@ -48,19 +48,24 @@
     private searchParams: SearchQuery = {};
     private searchLength: number = 0;
     private items: {[key: string]: Array<SearchResult>} = {};
-
+    private id2result: {[key: number]: SearchResult} = {};
 
     created() {
       this.getData()
     }
 
     fetchViolations(activeItem: string) {
+      let activeUikMemberId = parseInt(activeItem);
       axios.post<UikCrimeResponse>(
           "http://spbelect-blacklist-backend.appspot.com:8080/_ah/api/blacklist/v1/uik_crime", {
-            uik_member_id: 0 + activeItem
+            uik_member_id: activeUikMemberId
           }
       ).then(response => {
-        console.log(response);
+        let searchResult = this.id2result[activeUikMemberId];
+        if (searchResult) {
+          searchResult.violations = response.data.violations;
+        }
+
       });
     }
     @Watch("$route")
@@ -104,6 +109,7 @@
           newData[letter] = [];
         }
         newData[letter].push(item)
+        item.violations = {};
       });
       this.filterLoading = false;
       return newData;
@@ -115,6 +121,10 @@
           "http://spbelect-blacklist-backend.appspot.com:8080/_ah/api/blacklist/v1/search", this.searchParams
       ).then(xhr => {
         this.items = this.createLetters(xhr.data.data);
+        this.id2result = {};
+        xhr.data.data.forEach(result => {
+          this.id2result[result.id] = result;
+        });
         this.filterLoading = false;
       });
       // if (this.searchParams.tik) {
