@@ -5,8 +5,13 @@ export interface UikMemberStatus {
   uik_status: string;
 }
 
+export interface UikCrimeLink {
+  link_description: string;
+  link: string;
+}
 export interface Crime {
   description: string;
+  links: Array<UikCrimeLink>;
 }
 
 export interface SearchResult {
@@ -14,6 +19,7 @@ export interface SearchResult {
   name: string;
   status: Array<UikMemberStatus>;
   violations: {[key: string]: Array<Crime>};
+  id: number;
 }
 
 export interface SearchQuery {
@@ -39,4 +45,10 @@ export interface SearchResponse {
   filterData: FilterData;
 }
 
+export interface UikCrimeQuery {
+  uik_member_id: number;
+}
 
+export interface UikCrimeResponse {
+  violations: {[key: string]: Array<Crime>};
+}

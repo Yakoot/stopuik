@@ -1,5 +1,5 @@
 <template>
-  <el-collapse-item class="person">
+  <el-collapse-item class="person" :name="item.id">
     <template slot="title">
       <div class="name-item">
         <div class="name">{{ item.name }}</div>

@@ -18,7 +18,7 @@
   import RegistryFilter from './RegistryFilter.vue'
   import LetterBlock from './LetterBlock.vue'
   import {Component, Vue, Watch} from "vue-property-decorator";
-  import {FilterData, SearchQuery, SearchResponse, SearchResult} from "./Model";
+  import {FilterData, SearchQuery, SearchResponse, SearchResult, UikCrimeResponse} from "./Model";
 
   const reportData = [
     "досрочное голосование",
@@ -55,7 +55,13 @@
     }
 
     fetchViolations(activeItem: string) {
-      console.log(activeItem);
+      axios.post<UikCrimeResponse>(
+          "http://spbelect-blacklist-backend.appspot.com:8080/_ah/api/blacklist/v1/uik_crime", {
+            uik_member_id: 0 + activeItem
+          }
+      ).then(response => {
+        console.log(response);
+      });
     }
     @Watch("$route")
     getData() {
