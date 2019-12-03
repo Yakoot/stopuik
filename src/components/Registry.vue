@@ -20,19 +20,6 @@
   import {Component, Vue, Watch} from "vue-property-decorator";
   import {FilterData, SearchQuery, SearchResponse, SearchResult, UikCrimeResponse} from "./Model";
 
-  const reportData = [
-    "досрочное голосование",
-    "карусели",
-    "вброс бюллетеней",
-    "переписанные итоговые протоколы",
-    "помещение для голосования",
-    "голосование вне помещения для голосования",
-    "ограничение прав членов комиссии наблюдателей представителей СМИ",
-    "голосование в помещении для голосования",
-    "подсчет голосов и установление итогов",
-    "избирательная документация"
-  ];
-
   @Component({
     components: {
       RegistryFilter, LetterBlock
@@ -40,7 +27,7 @@
   })
   export default class Registry extends Vue {
     private data: Array<SearchResult> = [];
-    private filterData: FilterData = {report: reportData};
+    private filterData: FilterData = {};
     private letters: Array<String> = [];
     private loading = true;
     private filterLoading = false;
@@ -57,7 +44,7 @@
     fetchViolations(activeItem: string) {
       let activeUikMemberId = parseInt(activeItem);
       axios.post<UikCrimeResponse>(
-          "http://spbelect-blacklist-backend.appspot.com:8080/_ah/api/blacklist/v1/uik_crime", {
+          "http://spbelect-blacklist-backend.appspot.com/_ah/api/blacklist/v1/uik_crime", {
             uik_member_id: activeUikMemberId
           }
       ).then(response => {
@@ -68,21 +55,34 @@
 
       });
     }
+
+
     @Watch("$route")
     getData() {
-      axios.get<FilterData>("http://spbelect-blacklist-backend.appspot.com:8080/_ah/api/blacklist/v1/filters")
+      axios.get<FilterData>("/filters.json")
           .then(response => {
+            let intLessThan = function (a: string, b: string): number {
+              return parseInt(a) - parseInt(b);
+            };
             if (response.data.ikmo) {
               response.data.ikmo.sort();
               this.filterData.ikmo = response.data.ikmo;
             }
             if (response.data.uik) {
-              response.data.uik.sort((a, b) => parseInt(a) - parseInt(b));
+              response.data.uik.sort(intLessThan);
               this.filterData.uik = response.data.uik;
             }
             if (response.data.tik) {
-              response.data.tik.sort((a, b) => parseInt(a) - parseInt(b));
+              response.data.tik.sort(intLessThan);
               this.filterData.tik = response.data.tik;
+            }
+            if (response.data.year) {
+              response.data.year.sort(intLessThan);
+              this.filterData.year = response.data.year;
+            }
+            if (response.data.report) {
+              response.data.report.sort();
+              this.filterData.report = response.data.report;
             }
             this.filterData = {... this.filterData, ...response.data};
             this.loading = false;
@@ -98,7 +98,7 @@
     filter(data: SearchQuery) {
       this.filterLoading = true;
       this.searchParams = data;
-      this.search([]);
+      this.search();
     }
 
     createLetters(data: Array<SearchResult>): { [key: string]: Array<SearchResult>; } {
@@ -108,23 +108,29 @@
         if (Object.keys(newData).indexOf(letter) < 0) {
           newData[letter] = [];
         }
-        newData[letter].push(item)
+        newData[letter].push(item);
         item.violations = {};
       });
       this.filterLoading = false;
       return newData;
     }
 
-    search(data: Array<SearchResult>): Array<SearchResult> {
-      let newData: Array<SearchResult> = [];
+    search() {
       axios.post<SearchResponse>(
-          "http://spbelect-blacklist-backend.appspot.com:8080/_ah/api/blacklist/v1/search", this.searchParams
+          "http://spbelect-blacklist-backend.appspot.com/_ah/api/blacklist/v1/search", this.searchParams
       ).then(xhr => {
-        this.items = this.createLetters(xhr.data.data);
         this.id2result = {};
-        xhr.data.data.forEach(result => {
-          this.id2result[result.id] = result;
-        });
+
+        if (xhr.data.data) {
+          this.items = this.createLetters(xhr.data.data);
+          xhr.data.data.forEach(result => {
+            this.id2result[result.id] = result;
+          });
+          this.searchLength = xhr.data.data.length;
+        } else {
+          this.searchLength = 0;
+        }
+
         this.filterLoading = false;
       });
       // if (this.searchParams.tik) {
@@ -168,8 +174,6 @@
       //     else return false;
       //   })
       // }
-      this.searchLength = newData.length;
-      return newData;
     }
   }
 </script>
