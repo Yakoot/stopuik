@@ -44,7 +44,7 @@
     fetchViolations(activeItem: string) {
       let activeUikMemberId = parseInt(activeItem);
       axios.post<UikCrimeResponse>(
-          "http://spbelect-blacklist-backend.appspot.com/_ah/api/blacklist/v1/uik_crime", {
+          "/_ah/api/blacklist/v1/uik_crime", {
             uik_member_id: activeUikMemberId
           }
       ).then(response => {
@@ -117,7 +117,7 @@
 
     search() {
       axios.post<SearchResponse>(
-          "http://spbelect-blacklist-backend.appspot.com/_ah/api/blacklist/v1/search", this.searchParams
+          "/_ah/api/blacklist/v1/search", this.searchParams
       ).then(xhr => {
         this.id2result = {};
 
@@ -128,6 +128,7 @@
           });
           this.searchLength = xhr.data.data.length;
         } else {
+          this.items = {};
           this.searchLength = 0;
         }
 
