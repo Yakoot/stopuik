@@ -1,5 +1,13 @@
 <template>
     <div class="registry">
+        <el-alert
+                v-if="errorActive"
+                :title="errorTitle"
+                type="error"
+                :description="errorDetails"
+                show-icon
+                @close="clearError">
+        </el-alert>
         <RegistryFilter @filter="filter" :data="filterData" :search-length="searchLength"></RegistryFilter>
         <div v-loading="loading || filterLoading">
             <el-collapse accordion v-model="activeName" @change="fetchViolations">
@@ -13,7 +21,7 @@
     </div>
 </template>
 <script lang="ts">
-  import axios from "axios";
+  import axios, {AxiosError, AxiosPromise} from "axios";
 
   import RegistryFilter from './RegistryFilter.vue'
   import LetterBlock from './LetterBlock.vue'
@@ -36,14 +44,19 @@
     private searchLength: number = 0;
     private items: {[key: string]: Array<SearchResult>} = {};
     private id2result: {[key: number]: SearchResult} = {};
-
+    private errorActive = false;
+    private errorTitle = "";
+    private errorDetails = "";
+    private httpClient = axios.create({
+      timeout: 10000,
+    });
     created() {
       this.getData()
     }
 
     fetchViolations(activeItem: string) {
       let activeUikMemberId = parseInt(activeItem);
-      axios.post<UikCrimeResponse>(
+      this.httpClient.post<UikCrimeResponse>(
           "/_ah/api/blacklist/v1/uik_crime", {
             uik_member_id: activeUikMemberId
           }
@@ -52,14 +65,25 @@
         if (searchResult) {
           searchResult.violations = response.data.violations;
         }
-
-      });
+      }).catch(this.handleError);
     }
 
+    private handleError(error: AxiosError) {
+      this.errorActive = true;
+      this.errorTitle = "Что-то пошло не так";
+      if (error.response) {
+        this.errorDetails = `
+HTTP ${error.response.status}: ${error.response.statusText}\n
+(при выполнении запроса: ${error.config.url})
+        `;
+      } else {
+        this.errorDetails = `Не получен ответ (при выполнении запроса: ${error.config.url})`;
+      }
+    }
 
     @Watch("$route")
     getData() {
-      axios.get<FilterData>("/filters.json")
+      this.httpClient.get<FilterData>("/filters.json")
           .then(response => {
             let intLessThan = function (a: string, b: string): number {
               return parseInt(a) - parseInt(b);
@@ -86,7 +110,7 @@
             }
             this.filterData = {... this.filterData, ...response.data};
             this.loading = false;
-          })
+          }).catch(this.handleError);
       // axios.get<DataResponse>("/data.json")
       //     .then(response => {
       //       this.data = response.data.data;
@@ -98,7 +122,9 @@
     filter(data: SearchQuery) {
       this.filterLoading = true;
       this.searchParams = data;
-      this.search();
+      this.search().catch(() => {
+        this.filterLoading = false;
+      });
     }
 
     createLetters(data: Array<SearchResult>): { [key: string]: Array<SearchResult>; } {
@@ -115,10 +141,11 @@
       return newData;
     }
 
-    search() {
-      axios.post<SearchResponse>(
+    search(): AxiosPromise<SearchResponse> {
+      const result = this.httpClient.post<SearchResponse>(
           "/_ah/api/blacklist/v1/search", this.searchParams
-      ).then(xhr => {
+      );
+      result.then(xhr => {
         this.id2result = {};
 
         if (xhr.data.data) {
@@ -133,7 +160,8 @@
         }
 
         this.filterLoading = false;
-      });
+      }).catch(this.handleError);
+      return result;
       // if (this.searchParams.tik) {
       //   const tik = this.searchParams.tik;
       //   newData = newData.filter(item => {
@@ -175,6 +203,12 @@
       //     else return false;
       //   })
       // }
+    }
+
+    clearError() {
+      this.errorActive = false;
+      this.errorTitle = "";
+      this.errorDetails = "";
     }
   }
 </script>

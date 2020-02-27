@@ -53,7 +53,8 @@
         str += `${status.uik_status}`;
       }
       if (status.uik) {
-        str += ` УИК ${status.uik},`;
+        let uikNum = parseInt(status.uik);
+        str += uikNum > 0 ? ` УИК ${uikNum},` : ` ТИК ${-status.uik}`;
       }
       if (status.tik) {
         str += ` ТИК ${status.tik}`;

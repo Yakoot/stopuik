@@ -8,8 +8,10 @@
     </div>
     <div>
       <router-view @openReport="openReport"></router-view>
+      <router-view @openReportAdmin="openReportAdmin"></router-view>
     </div>
-    <ReportModal :visible.sync="reportVisible" @closeReport="reportVisible = false"/>
+    <ReportModal :visible.sync="reportVisible" @closeReport="reportVisible = false"  @openReportAdmin="openReportAdmin"/>
+    <ReportAdmin :visible.sync="reportAdminVisible" @closeReport="reportAdminVisible = false"/>
   </div>
 </template>
 
@@ -18,6 +20,7 @@
   import Header from "./components/Header.vue";
   import Menu from "./components/Menu.vue";
   import ReportModal from "./components/ReportModal.vue";
+  import ReportAdmin from "@/components/ReportAdmin.vue";
 
   const regions = [
     "Санкт-Петербург",
@@ -30,16 +33,22 @@
     components: {
       Header,
       Menu,
-      ReportModal
+      ReportModal,
+      ReportAdmin
     },
   })
   export default class App extends Vue {
     private reportVisible = false;
+    private reportAdminVisible = false;
     private regions = regions;
     private currentRegion: string = regions[0];
 
     openReport() {
-        this.reportVisible = true
+        this.reportVisible = true;
+    }
+    openReportAdmin() {
+      this.reportVisible = false;
+      this.reportAdminVisible = true;
     }
     changeRegion(region: string) {
         this.currentRegion = region;
