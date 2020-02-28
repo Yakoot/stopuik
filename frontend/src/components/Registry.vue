@@ -88,6 +88,8 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
             let intLessThan = function (a: string, b: string): number {
               return parseInt(a) - parseInt(b);
             };
+
+            window.filters = response.data;
             if (response.data.ikmo) {
               response.data.ikmo.sort();
               this.filterData.ikmo = response.data.ikmo;

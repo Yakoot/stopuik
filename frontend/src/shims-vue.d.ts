@@ -5,3 +5,6 @@ declare module '*.vue' {
 declare module 'vue-mq';
 declare module 'v-mask';
 declare module 'components/About';
+interface Window {
+  filters: any;
+}

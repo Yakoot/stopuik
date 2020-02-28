@@ -62,6 +62,41 @@ data class UikCrimeResponse(
     var violations: MutableMap<String, MutableList<Crime>> = mutableMapOf()
 )
 
+data class UikMembersQuery(
+  var uik: Int = 0,
+  var year: Int = 0
+)
+
+data class UikMembersResponseItem(
+  var id: Int,
+  var name: String,
+  var status: Int
+)
+
+data class UikMembersResponse(
+  var people: List<UikMembersResponseItem> = listOf()
+)
+
+data class AllUiksQuery(
+  var year: Int = 0
+)
+
+enum class UikType {
+  UIK, TIK, IKMO
+}
+
+data class AllUiksResponseItem(
+    var name: String,
+    var id: Int,
+    var type: UikType,
+    var managingUikId: Int
+)
+
+data class AllUiksResponse(
+    var uiks: List<AllUiksResponseItem> = listOf()
+)
+
+
 
 @Api(name = "blacklist",
     version = "v1")
@@ -154,6 +189,49 @@ class Endpoint {
       }
 
       return resp
+    }
+  }
+
+  @ApiMethod(name = "uik_members", httpMethod = "POST", path = "uik_members")
+  fun getUikMembers(query: UikMembersQuery): UikMembersResponse {
+    using(dataSource, SQLDialect.POSTGRES).use { ctx ->
+      val members =
+          ctx.select(
+              field("fio"),
+              field("uik_status"),
+              field("id"))
+              .from(table("uik_history").join("uik_member").on("uik_member = id"))
+              .where(field("year").eq(query.year)).and(field("uik").eq(query.uik))
+              .map {row ->
+                UikMembersResponseItem(
+                    id = row["id"].toString().toInt(),
+                    name = row["fio"].toString(),
+                    status = row["uik_status"].toString().toInt()
+                )
+              }.toList()
+      return UikMembersResponse(people = members)
+    }
+  }
+
+  @ApiMethod(name = "all_uiks", httpMethod = "POST", path = "all_uiks")
+  fun getAllUiks(query: AllUiksQuery): AllUiksResponse {
+    using(dataSource, SQLDialect.POSTGRES).use { ctx ->
+      return AllUiksResponse(
+          uiks = ctx.select(
+              field("id"),
+              field("name"),
+              field("type"),
+              field("managing_id"))
+              .from(table("alluiksview2019"))
+              .map {row ->
+                AllUiksResponseItem(
+                    id = row["id"].toString().toInt(),
+                    name = row["name"].toString(),
+                    type = UikType.valueOf(row["type"].toString()),
+                    managingUikId = row["managing_id"].toString().toInt()
+                )
+              }.toList()
+      )
     }
   }
 

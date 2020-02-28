@@ -52,3 +52,34 @@ export interface UikCrimeQuery {
 export interface UikCrimeResponse {
   violations: {[key: string]: Array<Crime>};
 }
+
+export type UikType = "UIK" | "TIK" | "IKMO";
+
+export interface AllUiksQuery {
+  year: number;
+}
+
+export interface AllUiksResponseItem {
+  name: string;
+  id: number;
+  type: UikType;
+  managingUikId: number;
+}
+
+export interface AllUiksResponse {
+  uiks: Array<AllUiksResponseItem>
+}
+export interface UikMembersQuery {
+  uik: number;
+  year: number;
+}
+
+export interface UikMembersResponseItem {
+  id: number;
+  name: string;
+  status: number;
+}
+
+export interface UikMembersResponse {
+  people: Array<UikMembersResponseItem>
+}

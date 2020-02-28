@@ -8,7 +8,6 @@
     </div>
     <div>
       <router-view @openReport="openReport"></router-view>
-      <router-view @openReportAdmin="openReportAdmin"></router-view>
     </div>
     <ReportModal :visible.sync="reportVisible" @closeReport="reportVisible = false"  @openReportAdmin="openReportAdmin"/>
     <ReportAdmin :visible.sync="reportAdminVisible" @closeReport="reportAdminVisible = false"/>
