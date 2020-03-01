@@ -4,6 +4,7 @@ import ElementUI from 'element-ui'
 import VueRouter from 'vue-router'
 import About from './components/About.vue'
 import Registry from './components/Registry.vue'
+import ReportAdmin from "./components/ReportAdmin.vue";
 import './assets/style/element-variables.scss'
 import VueMask from 'v-mask'
 import VueMq from 'vue-mq'
@@ -26,7 +27,8 @@ const routes = [
   { path: '', component: Registry },
   { path: '/about', component: About },
   { path: '/registry', component: Registry },
-  { path: '/index.html', component: Registry }
+  { path: '/index.html', component: Registry },
+  { path: '/admin', component: ReportAdmin}
 ]
 
 const router = new VueRouter({

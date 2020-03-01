@@ -83,3 +83,21 @@ export interface UikMembersResponseItem {
 export interface UikMembersResponse {
   people: Array<UikMembersResponseItem>
 }
+
+interface CreateCrimeRequestLinkItem {
+  title: string;
+  url: string;
+}
+
+export interface CreateCrimeRequest {
+  uik: number;
+  uikMembers: Array<number>;
+  newUikMembers: Array<string>;
+  crimeType: string;
+  crimeLinks: Array<CreateCrimeRequestLinkItem>;
+}
+
+export interface CreateCrimeResponse {
+  crimeId: number;
+  message: string;
+}

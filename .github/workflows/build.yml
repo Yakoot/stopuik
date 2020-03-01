@@ -15,5 +15,6 @@ jobs:
       run: echo Building Blacklist Client
     - name: Run a multi-line script
       run: |
+        cd frontend
         npm install
         npm run build

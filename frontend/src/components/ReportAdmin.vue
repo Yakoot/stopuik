@@ -6,7 +6,15 @@ import {UikType} from "@/components/Model";
             :before-close="handleClose"
             fullscreen
             center>
-        <el-form ref="form" :model="form" label-width="20em">
+        <el-alert
+                v-if="errorActive"
+                :title="errorTitle"
+                type="error"
+                :description="errorDetails"
+                show-icon
+                @close="clearError">
+        </el-alert>
+        <el-form ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading">
             <el-form-item label="Избирательная комиссия">
                 <el-select
                         v-model="form.uik"
@@ -23,7 +31,7 @@ import {UikType} from "@/components/Model";
             </el-form-item>
             <el-form-item label="Член комиссии">
                 <el-select
-                        v-model="form.selectedUikMember"
+                        v-model="form.uikMembers"
                         :disabled="!uikMembersLoaded"
                         multiple
                         filterable
@@ -55,11 +63,12 @@ import {UikType} from "@/components/Model";
             <el-form-item
                     v-for="(link, index) in form.links"
                     :label="'Ссылка №' + (index+1)"
-                    :prop="'links.' + index + '.value'"
-                    class="link-row"
-            >
+                    :key="'crimeLink' + index"
+                    :prop="'crimeLink' + (index)"
+                    :rules="validationRules.crimeLink"
+                    class="link-row">
                 <el-input v-model="link.title" class="link-title"></el-input>
-                <el-input v-model="link.url" class="link-url"></el-input>
+                <el-input v-model="link.url" class="link-url" :id="'crimeLink' + index"></el-input>
 
                 <el-button @click.prevent="removeLink(link)">Удалить</el-button>
             </el-form-item>
@@ -69,11 +78,18 @@ import {UikType} from "@/components/Model";
             </el-form-item>
 
             <el-form-item>
-                <el-button type="primary" @click="onSubmit">Создать запись</el-button>
-                <el-button>Cancel</el-button>
+                <el-button type="primary" @click="onSubmit" :disabled="!submitEnabled">Создать запись</el-button>
             </el-form-item>
         </el-form>
-        <p>uik={{form.uik}} member={{form.selectedUikMember}}</p>
+        <el-alert
+                v-if="successActive"
+                :title="successTitle"
+                type="success"
+                :description="successDetails"
+                show-icon
+                @close="clearSuccess">
+        </el-alert>
+        <p>uik={{form.uik}} member={{form.uikMembers}} crime={{form.crimeType}} links={{form.links}}</p>
     </el-dialog>
 </template>
 <script lang="ts">
@@ -81,7 +97,7 @@ import {UikType} from "@/components/Model";
   import axios, {AxiosError} from "axios";
   import {
     AllUiksQuery,
-    AllUiksResponse,
+    AllUiksResponse, CreateCrimeRequest, CreateCrimeResponse,
     FilterData,
     UikMembersQuery,
     UikMembersResponse,
@@ -108,6 +124,12 @@ import {UikType} from "@/components/Model";
     title: string
   }
 
+  interface FormData {
+    uik?: number;
+    uikMembers?: Array<number | string>;
+    crimeType?: string;
+    links: Array<LinkItem>;
+  }
   @Component({
   })
   export default class ReportAdmin extends Vue {
@@ -116,18 +138,29 @@ import {UikType} from "@/components/Model";
       timeout: 10000,
     });
 
-    private form = {
-      uik: undefined,
-      selectedUikMember: undefined,
-      crimeType: undefined,
-      links: [] as Array<LinkItem>
+    private form: FormData = {
+      links: [{title: "", url: ""}]
     };
 
+    private validationRules = {
+        crimeLink: [
+          {validator: this.validateCrimeLink, trigger: 'blur'}
+        ]
+    };
+
+    private isLoading = false;
     private allUiks: Array<UikDropdownItem> = [];
     private allUiksLoaded = false;
     private uikMembersLoaded = false;
     private uikMembers: Array<UikMemberDropdownItem> = [];
     private crimeTypes: Array<CrimeTypeDropdownItem> = [];
+    private submitEnabled = false;
+    private errorActive = false;
+    private errorTitle = "";
+    private errorDetails = "";
+    private successActive = false;
+    private successTitle = "";
+    private successDetails = "";
 
     close() {
         this.$emit("closeReport");
@@ -136,7 +169,30 @@ import {UikType} from "@/components/Model";
         this.$emit("closeReport");
     }
     onSubmit() {
-        console.log("!!!!!!!!!!!");
+      if (this.form.uik === undefined || this.form.uikMembers === undefined || this.form.crimeType === undefined) {
+        return;
+      }
+      const query: CreateCrimeRequest = {
+        uik: this.form.uik,
+        uikMembers: this.form.uikMembers.filter(it => typeof it === "number") as Array<number>,
+        newUikMembers: this.form.uikMembers.filter(it => typeof it === "string") as Array<string>,
+        crimeType: this.form.crimeType,
+        crimeLinks: this.form.links
+      };
+      this.isLoading = true;
+      this.httpClient.post<CreateCrimeResponse>("/_ah/api/blacklist/v1/create_crime", query).then(response => {
+        if (response.data.crimeId > 0) {
+            this.successTitle = "Нарушение опубликовано";
+            this.successDetails = response.data.message;
+            this.successActive = true;
+            window.setInterval(() => this.clearSuccess(), 3000);
+        } else {
+          this.errorTitle = "Что-то пошло не так";
+          this.errorDetails = `Публикация нарушения завершилась с ошибкой: ${response.data.message}`
+          this.errorActive = true;
+        }
+        this.isLoading = false;
+      }).catch(this.handleError);
     }
 
     addLink() {
@@ -169,7 +225,31 @@ import {UikType} from "@/components/Model";
       });
     }
 
+    validateCrimeLink(rule: any, value: any, callback: (err: Error) => any) {
+        const linkInput = document.getElementById(rule.field);
+        if (linkInput && linkInput instanceof HTMLInputElement) {
+          if (!isUrl(linkInput.value)) {
+            callback(Error("Ссылка должна выглядеть примерно так: https://example.com"));
+          }
+        }
+        this.validateForm();
+    }
+
+    @Watch("form.uik")
+    @Watch("form.uikMembers")
+    @Watch("form.crimeType")
+    @Watch("form.links")
+    validateForm() {
+      this.submitEnabled = this.form.uik !== undefined
+          && this.form.uikMembers !== undefined
+          && this.form.uikMembers.length > 0
+          && this.form.crimeType !== undefined
+          && this.form.links.length > 0
+          && this.form.links.filter(it => isUrl(it.url)).length > 0;
+    }
+
     private loadUiks(query: AllUiksQuery) {
+      this.isLoading = true;
       this.httpClient.post<AllUiksResponse>("/_ah/api/blacklist/v1/all_uiks", query).then(response => {
         this.allUiks = response.data.uiks.map(item => {
           return {
@@ -178,32 +258,70 @@ import {UikType} from "@/components/Model";
           }
         });
         this.allUiksLoaded = true;
-      }).catch((error: AxiosError) => {
-        console.error(error);
-      });
+        this.isLoading = false;
+      }).catch(this.handleError);
     }
 
     private loadUikMembers(query: UikMembersQuery) {
+      this.isLoading = true;
         this.httpClient.post<UikMembersResponse>("/_ah/api/blacklist/v1/uik_members", query).then(response => {
             this.uikMembers = response.data.people.map(item => {
               return {
                 value: item.id,
-                label: `[${item.status}] ${item.name}`
+                label: `${formatStatus(item.status)} ${item.name}`
               }
             });
             this.uikMembersLoaded = true;
-        }).catch((error: AxiosError) => {
-          console.error(error);
-        });
+            this.isLoading = false;
+        }).catch(this.handleError);
     }
+
+    private handleError(error: AxiosError) {
+      this.isLoading = false;
+      this.errorActive = true;
+      this.errorTitle = "Что-то пошло не так";
+      if (error.response) {
+        this.errorDetails = `
+HTTP ${error.response.status}: ${error.response.statusText}\n
+(при выполнении запроса: ${error.config.url})
+        `;
+      } else {
+        this.errorDetails = `Не получен ответ (при выполнении запроса: ${error.config.url})`;
+      }
+    }
+    clearError() {
+      this.errorActive = false;
+      this.errorTitle = "";
+      this.errorDetails = "";
+    }
+    clearSuccess() {
+      this.successActive = false;
+      this.successTitle = "";
+      this.successDetails = "";
+    }
+
   }
 
-  function formatUikType(type: UikType) {
+  function formatUikType(type: UikType): string {
     switch (type) {
       case "UIK": return "УИК";
       case "IKMO": return "ИКМО";
       case "TIK": return "ТИК";
     }
+  }
+
+  function formatStatus(status: number): string {
+    switch (status) {
+        case 1: return "Пред.";
+        case 2: return "Зам.";
+        case 3: return "Секр.";
+        case 4: return "ЧПРГ";
+        case 5: return "ЧПСГ";
+        default: return `[${status}]`;
+    }
+  }
+  function isUrl(url: string) {
+    return url.trim().startsWith("http://") || url.trim().startsWith("https://");
   }
 </script>
 <style lang="scss">
@@ -220,5 +338,8 @@ import {UikType} from "@/components/Model";
             margin-right: 0.5em;
         }
         margin-bottom: 1em;
+    }
+    .el-button.is-disabled {
+        opacity: 0.5;
     }
 </style>

@@ -7,7 +7,9 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.api.server.spi.config.Api
 import com.google.api.server.spi.config.ApiMethod
 import org.jooq.SQLDialect
+import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL.*
+import org.slf4j.LoggerFactory
 
 data class FilterData(
     var uik: MutableList<String> = mutableListOf(),
@@ -96,7 +98,24 @@ data class AllUiksResponse(
     var uiks: List<AllUiksResponseItem> = listOf()
 )
 
+data class CreateCrimeRequestLinkItem(
+    var title: String = "",
+    var url: String = ""
+)
 
+data class CreateCrimeRequest(
+    var year: Int = 2019,
+    var uik: Int = 0,
+    var uikMembers: List<Int> = listOf(),
+    var newUikMembers: List<String> = listOf(),
+    var crimeType: String = "",
+    var crimeLinks: List<CreateCrimeRequestLinkItem> = listOf()
+)
+
+data class CreateCrimeResponse(
+    var crimeId: Int,
+    var message: String
+)
 
 @Api(name = "blacklist",
     version = "v1")
@@ -202,6 +221,7 @@ class Endpoint {
               field("id"))
               .from(table("uik_history").join("uik_member").on("uik_member = id"))
               .where(field("year").eq(query.year)).and(field("uik").eq(query.uik))
+              .orderBy(field("uik_status"), field("fio"))
               .map {row ->
                 UikMembersResponseItem(
                     id = row["id"].toString().toInt(),
@@ -232,6 +252,43 @@ class Endpoint {
                 )
               }.toList()
       )
+    }
+  }
+
+  @ApiMethod(name = "create_crime", httpMethod = "POST", path = "create_crime")
+  fun createCrime(query: CreateCrimeRequest): CreateCrimeResponse {
+    val messages = mutableListOf<String>()
+    try {
+      using(dataSource, SQLDialect.POSTGRES).use { ctx ->
+        val q = ctx.insertInto(table("uik_crime"), field("crime_title"))
+            .values(query.crimeType)
+            .returning(field("id"))
+        val crimeId = q.fetchOne().getValue("id").toString().toInt()
+        LOGGER.info("Create crime $crimeId")
+        messages.add("Создано нарушение №$crimeId")
+
+        // TODO: добавлять newUikMembers в таблицы
+        val uikMembers = query.uikMembers
+        uikMembers.forEach {
+          ctx.insertInto(table("uik_member_history_crime"), field("crime_id"), field("year"), field("uik_member"))
+              .values(crimeId, query.year, it).execute()
+          LOGGER.info("Crime $crimeId was committed by UIK member $it in year ${query.year}")
+        }
+        messages.add("Проассоциировано с ${uikMembers.size} пациентами")
+
+        query.crimeLinks.forEach {
+          ctx.insertInto(table("uik_crime_links"), field("uik_crime_id"), field("link_title"), field("link_url"))
+              .values(crimeId, it.title, it.url).execute()
+          LOGGER.info("Associated link ${it.url} with crime $crimeId")
+        }
+        messages.add("Проассоциировано с ${query.crimeLinks.size} ссылками")
+
+        return CreateCrimeResponse(crimeId, messages.joinToString(separator = "\n"))
+      }
+    } catch (ex: DataAccessException) {
+      LOGGER.error("Failed to execute createCrime", ex)
+      LOGGER.info("Query was: $query")
+      return CreateCrimeResponse(-1, ex.message ?: "")
     }
   }
 
@@ -285,3 +342,5 @@ class Endpoint {
 
   }
 }
+
+private val LOGGER = LoggerFactory.getLogger("Endpoint")
