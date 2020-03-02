@@ -20,7 +20,8 @@ import {UikType} from "@/components/Model";
                         v-model="form.uik"
                         :disabled="!allUiksLoaded"
                         filterable
-                        placeholder="Где нарушение?">
+                        placeholder="Где нарушение?"
+                        id="uik-chooser">
                     <el-option
                             v-for="item in allUiks"
                             :key="item.value"
@@ -215,6 +216,12 @@ import {UikType} from "@/components/Model";
           }
         });
       }
+      window.setTimeout(() => {
+        const input = document.querySelector("#uik-chooser") as HTMLInputElement;
+          if (input) {
+            input.focus();
+          }
+      }, 1000);
     }
 
     @Watch("form.uik")

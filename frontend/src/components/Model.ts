@@ -101,3 +101,15 @@ export interface CreateCrimeResponse {
   crimeId: number;
   message: string;
 }
+
+export interface TimelineResponseItem {
+  year: number;
+  title: string;
+  date: string;
+  crimeCount: number;
+  uikMemberCount: number;
+}
+
+export interface TimelineResponse {
+  elections: Array<TimelineResponseItem>
+}

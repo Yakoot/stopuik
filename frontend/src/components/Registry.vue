@@ -18,6 +18,16 @@
                         :items="item"/>
             </el-collapse>
         </div>
+        <div v-if="timelineVisible" class="timeline">
+            <el-timeline>
+                <el-timeline-item v-for="(it, idx) in timelineItems" :timestamp="'' + it.year" placement="top">
+                    <el-card>
+                        <h3>{{it.title}}</h3>
+                        <p>Прошли {{it.date}}. Нарушений: {{it.crimeCount}}. Нарушителей: {{it.uikMemberCount}}</p>
+                    </el-card>
+                </el-timeline-item>
+            </el-timeline>
+        </div>
     </div>
 </template>
 <script lang="ts">
@@ -26,7 +36,15 @@
   import RegistryFilter from './RegistryFilter.vue'
   import LetterBlock from './LetterBlock.vue'
   import {Component, Vue, Watch} from "vue-property-decorator";
-  import {FilterData, SearchQuery, SearchResponse, SearchResult, UikCrimeResponse} from "./Model";
+  import {
+    FilterData,
+    SearchQuery,
+    SearchResponse,
+    SearchResult,
+    TimelineResponse,
+    TimelineResponseItem,
+    UikCrimeResponse
+  } from "./Model";
 
   @Component({
     components: {
@@ -34,7 +52,6 @@
     },
   })
   export default class Registry extends Vue {
-    private data: Array<SearchResult> = [];
     private filterData: FilterData = {};
     private letters: Array<String> = [];
     private loading = true;
@@ -44,6 +61,10 @@
     private searchLength: number = 0;
     private items: {[key: string]: Array<SearchResult>} = {};
     private id2result: {[key: number]: SearchResult} = {};
+
+    private timelineVisible = true;
+    private timelineItems: Array<TimelineResponseItem> = [];
+
     private errorActive = false;
     private errorTitle = "";
     private errorDetails = "";
@@ -51,7 +72,8 @@
       timeout: 10000,
     });
     created() {
-      this.getData()
+      this.getData();
+      this.loadTimeline();
     }
 
     fetchViolations(activeItem: string) {
@@ -113,12 +135,6 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
             this.filterData = {... this.filterData, ...response.data};
             this.loading = false;
           }).catch(this.handleError);
-      // axios.get<DataResponse>("/data.json")
-      //     .then(response => {
-      //       this.data = response.data.data;
-      //       this.filterData = {...this.filterData, ...response.data.filterData};
-      //       this.loading = false;
-      //     });
     }
 
     filter(data: SearchQuery) {
@@ -160,53 +176,17 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
           this.items = {};
           this.searchLength = 0;
         }
-
+        this.timelineVisible = (this.searchLength === 0);
         this.filterLoading = false;
       }).catch(this.handleError);
       return result;
-      // if (this.searchParams.tik) {
-      //   const tik = this.searchParams.tik;
-      //   newData = newData.filter(item => {
-      //     if (item.filter_data.tik) return item.filter_data.tik.includes(tik);
-      //     else return false;
-      //   })
-      // }
-      // if (this.searchParams.uik) {
-      //   const uik = this.searchParams.uik;
-      //   newData = newData.filter(item => {
-      //     if (item.filter_data.uik) return item.filter_data.uik.includes(uik);
-      //     else return false;
-      //   })
-      // }
-      // if (this.searchParams.year) {
-      //   const year = this.searchParams.year;
-      //   newData = newData.filter(item => {
-      //     if (item.filter_data.year) return item.filter_data.year.includes(year);
-      //     else return false;
-      //   })
-      // }
-      // if (this.searchParams.name) {
-      //   const name = this.searchParams.name;
-      //   newData = newData.filter(item => {
-      //     return item.name.toLowerCase().includes(name.toLowerCase())
-      //   })
-      // }
-      // if (this.searchParams.report) {
-      //   const report = this.searchParams.report;
-      //   newData = newData.filter(item => {
-      //     if (item.filter_data.description) return item.filter_data.description.includes(report);
-      //     else return false;
-      //   })
-      // }
-      // if (this.searchParams.ikmo) {
-      //   const ikmo = this.searchParams.ikmo;
-      //   newData = newData.filter(item => {
-      //     if (item.filter_data.ikmo) return item.filter_data.ikmo.includes(ikmo);
-      //     else return false;
-      //   })
-      // }
     }
 
+    loadTimeline() {
+        this.httpClient.post<TimelineResponse>("/_ah/api/blacklist/v1/timeline").then(response => {
+          this.timelineItems = response.data.elections;
+        });
+    }
     clearError() {
       this.errorActive = false;
       this.errorTitle = "";
@@ -216,6 +196,10 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
 </script>
 <style lang="scss">
     @import '../assets/style/theme';
+
+    .timeline {
+        margin-top: 5ex;
+    }
 
     .registry {
         margin: 20px 2% 0 2%

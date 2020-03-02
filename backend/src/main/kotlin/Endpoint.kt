@@ -117,6 +117,18 @@ data class CreateCrimeResponse(
     var message: String
 )
 
+data class TimelineResponseItem(
+  var year: Int = 0,
+  var title: String = "",
+  var date: String = "",
+  var crimeCount: Int = 0,
+  var uikMemberCount: Int = 0
+)
+
+data class TimelineResponse(
+  var elections: List<TimelineResponseItem> = listOf()
+)
+
 @Api(name = "blacklist",
     version = "v1")
 class Endpoint {
@@ -339,7 +351,31 @@ class Endpoint {
       }
       return UikCrimeResponse(year2crimes)
     }
+  }
 
+  @ApiMethod(name = "timeline", httpMethod = "POST", path = "timeline")
+  fun getTimeline(req: Any): TimelineResponse {
+    using(dataSource, SQLDialect.POSTGRES).use { ctx ->
+      val elections =
+          ctx.select(
+              field("year"),
+              field("title"),
+              field("date"),
+              field("crime_count"),
+              field("uik_member_count"))
+              .from(table("timeline"))
+              .orderBy(field("year").desc())
+              .map {row ->
+                TimelineResponseItem(
+                    year = row["year"].toString().toInt(),
+                    title = row["title"].toString(),
+                    date = row["date"].toString(),
+                    crimeCount = row["crime_count"].toString().toInt(),
+                    uikMemberCount = row["uik_member_count"].toString().toInt()
+                )
+              }.toList()
+      return TimelineResponse(elections = elections)
+    }
   }
 }
 
