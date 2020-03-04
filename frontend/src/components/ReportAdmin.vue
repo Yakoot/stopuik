@@ -2,7 +2,7 @@ import {UikType} from "@/components/Model";
 <template>
     <el-dialog
             title="Административный интерфейс"
-            :visible.sync="visible"
+            visible
             :before-close="handleClose"
             fullscreen
             center>
@@ -14,7 +14,7 @@ import {UikType} from "@/components/Model";
                 show-icon
                 @close="clearError">
         </el-alert>
-        <el-form ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading">
+        <el-form ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading" v-if="isAuthenticated">
             <el-form-item label="Избирательная комиссия">
                 <el-select
                         v-model="form.uik"
@@ -164,10 +164,10 @@ import {UikType} from "@/components/Model";
     private successDetails = "";
 
     close() {
-        this.$emit("closeReport");
+      window.location.pathname = "/";
     }
     handleClose() {
-        this.$emit("closeReport");
+      window.location.pathname = "/";
     }
     onSubmit() {
       if (this.form.uik === undefined || this.form.uikMembers === undefined || this.form.crimeType === undefined) {

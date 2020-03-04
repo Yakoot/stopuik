@@ -60,7 +60,7 @@ task processFrontendResources {
 }
 
 tasks.processResources {
-  mustRunAfter "processFrontendResources" 
+  mustRunAfter "processFrontendResources"
 }
 
 tasks.war {
@@ -75,6 +75,10 @@ appengine {
         projectId = "spbelect-blacklist-backend"
         version = "staging"
     }
+    run {
+        // jvmFlags = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"]
+    }
+
 }
 compileKotlin {
     kotlinOptions {

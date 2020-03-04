@@ -4,6 +4,7 @@ package org.spbelect.blacklist
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.google.api.server.spi.auth.common.User
 import com.google.api.server.spi.config.Api
 import com.google.api.server.spi.config.ApiMethod
 import org.jooq.SQLDialect
@@ -267,8 +268,8 @@ class Endpoint {
     }
   }
 
-  @ApiMethod(name = "create_crime", httpMethod = "POST", path = "create_crime")
-  fun createCrime(query: CreateCrimeRequest): CreateCrimeResponse {
+  @ApiMethod(name = "create_crime", httpMethod = "POST", path = "create_crime", authenticators = [AccessTokenAuthenticator::class])
+  fun createCrime(query: CreateCrimeRequest, user: User): CreateCrimeResponse {
     val messages = mutableListOf<String>()
     try {
       using(dataSource, SQLDialect.POSTGRES).use { ctx ->

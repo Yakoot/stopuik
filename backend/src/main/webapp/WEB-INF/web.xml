@@ -12,7 +12,15 @@
             <param-value>org.spbelect.blacklist.Endpoint</param-value>
         </init-param>
     </servlet>
+    <servlet>
+        <servlet-name>SigninServlet</servlet-name>
+        <servlet-class>org.spbelect.blacklist.DemoSignIn</servlet-class>
+    </servlet>
     <!-- Route API method requests to the backend. -->
+    <servlet-mapping>
+        <servlet-name>SigninServlet</servlet-name>
+        <url-pattern>/_ah/signin</url-pattern>
+    </servlet-mapping>
     <servlet-mapping>
         <servlet-name>EndpointsServlet</servlet-name>
         <url-pattern>/_ah/api/*</url-pattern>
