@@ -1,6 +1,40 @@
 import {UikType} from "@/components/Model";
 <template>
-    <el-dialog
+    <div>
+        <el-dialog  v-if="authState === 1"
+                    title="Вход для суперменов"
+                    visible
+                    :before-close="handleClose"
+                    center>
+            <el-alert
+                    v-if="errorActive"
+                    :title="errorTitle"
+                    type="error"
+                    :description="errorDetails"
+                    show-icon
+                    @close="clearError"></el-alert>
+            <el-form ref="authForm" :model="authForm" @submit.native.prevent="login">
+                <el-form-item prop="username">
+                    <el-input v-model="authForm.username" placeholder="Имя" prefix-icon="fas fa-user"></el-input>
+                </el-form-item>
+                <el-form-item prop="password">
+                    <el-input
+                            v-model="authForm.password"
+                            placeholder="Пароль"
+                            type="password"
+                            prefix-icon="fas fa-lock"
+                    ></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button
+                            class="login-button"
+                            type="primary"
+                            native-type="submit"
+                            block>Тук Тук</el-button>
+                </el-form-item>
+            </el-form>
+        </el-dialog>
+    <el-dialog  v-if="authState === 0"
             title="Административный интерфейс"
             visible
             :before-close="handleClose"
@@ -14,7 +48,7 @@ import {UikType} from "@/components/Model";
                 show-icon
                 @close="clearError">
         </el-alert>
-        <el-form ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading" v-if="isAuthenticated">
+        <el-form ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading">
             <el-form-item label="Избирательная комиссия">
                 <el-select
                         v-model="form.uik"
@@ -92,6 +126,7 @@ import {UikType} from "@/components/Model";
         </el-alert>
         <p>uik={{form.uik}} member={{form.uikMembers}} crime={{form.crimeType}} links={{form.links}}</p>
     </el-dialog>
+    </div>
 </template>
 <script lang="ts">
   import {Component, Prop, Vue, Watch} from "vue-property-decorator";
@@ -104,6 +139,7 @@ import {UikType} from "@/components/Model";
     UikMembersResponse,
     UikType
   } from "@/components/Model";
+  import Axios from "axios";
 
   interface UikDropdownItem {
     value: number;
@@ -131,6 +167,8 @@ import {UikType} from "@/components/Model";
     crimeType?: string;
     links: Array<LinkItem>;
   }
+
+  enum AuthState { OK, NOT_AUTHENTICATED, UNKNOWN }
   @Component({
   })
   export default class ReportAdmin extends Vue {
@@ -138,6 +176,11 @@ import {UikType} from "@/components/Model";
     private httpClient = axios.create({
       timeout: 10000,
     });
+
+    private authForm = {
+      password: "",
+      username: ""
+    };
 
     private form: FormData = {
       links: [{title: "", url: ""}]
@@ -149,6 +192,7 @@ import {UikType} from "@/components/Model";
         ]
     };
 
+    private authState: AuthState = AuthState.UNKNOWN;
     private isLoading = false;
     private allUiks: Array<UikDropdownItem> = [];
     private allUiksLoaded = false;
@@ -162,6 +206,53 @@ import {UikType} from "@/components/Model";
     private successActive = false;
     private successTitle = "";
     private successDetails = "";
+
+    login() {
+      const data = `username=${encodeURIComponent(this.authForm.username)}&password=${encodeURIComponent(this.authForm.password)}`;
+      axios({
+        url: "/_ah/signin/do",
+        method: "POST",
+        data: data,
+        headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' }
+      }).then(response => {
+        if (response.status === 200) {
+          this.loadAuthState();
+        } else {
+          this.errorActive = true;
+          this.errorTitle = "Что-то пошло не так";
+          this.errorDetails = response.statusText;
+        }
+      });
+    }
+
+    loadAuthState() {
+      this.httpClient.get("/_ah/signin/check").then(response => {
+        switch (response.status) {
+          case 200: {
+            this.authState = AuthState.OK;
+            break;
+          }
+          case 401: {
+            this.authState = AuthState.NOT_AUTHENTICATED;
+          }
+          default: {
+            this.errorActive = true;
+            this.errorTitle = "Что-то пошло не так";
+            this.errorDetails = response.statusText;
+          }
+        }
+      }).catch((error: AxiosError) => {
+        if (error.response) {
+          if (error.response.status === 401) {
+            this.authState = AuthState.NOT_AUTHENTICATED;
+          }
+        }
+      });
+    }
+
+    mounted() {
+      this.loadAuthState();
+    }
 
     close() {
       window.location.pathname = "/";

@@ -13,13 +13,21 @@
         </init-param>
     </servlet>
     <servlet>
-        <servlet-name>SigninServlet</servlet-name>
-        <servlet-class>org.spbelect.blacklist.DemoSignIn</servlet-class>
+        <servlet-name>CheckSigninServlet</servlet-name>
+        <servlet-class>org.spbelect.blacklist.CheckSignIn</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>DoSigninServlet</servlet-name>
+        <servlet-class>org.spbelect.blacklist.DoSignIn</servlet-class>
     </servlet>
     <!-- Route API method requests to the backend. -->
     <servlet-mapping>
-        <servlet-name>SigninServlet</servlet-name>
-        <url-pattern>/_ah/signin</url-pattern>
+        <servlet-name>DoSigninServlet</servlet-name>
+        <url-pattern>/_ah/signin/do</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>CheckSigninServlet</servlet-name>
+        <url-pattern>/_ah/signin/check</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
         <servlet-name>EndpointsServlet</servlet-name>

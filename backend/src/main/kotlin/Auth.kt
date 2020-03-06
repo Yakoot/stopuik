@@ -19,13 +19,19 @@ class AccessTokenAuthenticator : Authenticator {
   }
 }
 
-class DemoSignIn : HttpServlet() {
-  override fun doPost(req: HttpServletRequest?, resp: HttpServletResponse?) {
-    super.doPost(req, resp)
-  }
-
+class CheckSignIn : HttpServlet() {
   override fun doGet(req: HttpServletRequest, resp: HttpServletResponse) {
-    req.getSession(true).setAttribute("userId", "demo")
+    val session = req.getSession(false)
+    resp.status = session?.getAttribute("userId")?.let {
+      HttpStatusCodes.STATUS_CODE_OK
+    } ?: HttpStatusCodes.STATUS_CODE_UNAUTHORIZED
+  }
+}
+
+class DoSignIn : HttpServlet() {
+  override fun doPost(req: HttpServletRequest, resp: HttpServletResponse) {
+    println("password="+req.getParameter("password") + " user="+req.getParameter("username"))
+    req.getSession(true).setAttribute("userId", req.getParameter("username"))
     resp.status = HttpStatusCodes.STATUS_CODE_OK
   }
 }
