@@ -45,6 +45,7 @@
         this.reportVisible = true;
     }
     openReportAdmin() {
+      window.location.pathname = "/admin";
       this.reportVisible = false;
       this.reportAdminVisible = true;
     }

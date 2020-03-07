@@ -2,7 +2,7 @@ import {UikType} from "@/components/Model";
 <template>
     <div>
         <el-dialog  v-if="authState === 1"
-                    title="Вход для суперменов"
+                    title="Вход для редакторов"
                     visible
                     :before-close="handleClose"
                     center>
@@ -15,7 +15,7 @@ import {UikType} from "@/components/Model";
                     @close="clearError"></el-alert>
             <el-form ref="authForm" :model="authForm" @submit.native.prevent="login">
                 <el-form-item prop="username">
-                    <el-input v-model="authForm.username" placeholder="Имя" prefix-icon="fas fa-user"></el-input>
+                    <el-input v-model="authForm.email" placeholder="Адрес электронной почты" prefix-icon="fas fa-user"></el-input>
                 </el-form-item>
                 <el-form-item prop="password">
                     <el-input
@@ -35,7 +35,7 @@ import {UikType} from "@/components/Model";
             </el-form>
         </el-dialog>
     <el-dialog  v-if="authState === 0"
-            title="Административный интерфейс"
+            title="Редакторский интерфейс"
             visible
             :before-close="handleClose"
             fullscreen
@@ -179,7 +179,7 @@ import {UikType} from "@/components/Model";
 
     private authForm = {
       password: "",
-      username: ""
+      email: ""
     };
 
     private form: FormData = {
@@ -207,8 +207,21 @@ import {UikType} from "@/components/Model";
     private successTitle = "";
     private successDetails = "";
 
+    mounted() {
+      this.loadAuthState();
+      this.loadUiks({
+        year: 2019
+      });
+      this.loadCrimeTypes();
+      window.setTimeout(() => {
+        const input = document.querySelector("#uik-chooser") as HTMLInputElement;
+        if (input) {
+          input.focus();
+        }
+      }, 1000);
+    }
     login() {
-      const data = `username=${encodeURIComponent(this.authForm.username)}&password=${encodeURIComponent(this.authForm.password)}`;
+      const data = `email=${encodeURIComponent(this.authForm.email)}&password=${encodeURIComponent(this.authForm.password)}`;
       axios({
         url: "/_ah/signin/do",
         method: "POST",
@@ -248,10 +261,6 @@ import {UikType} from "@/components/Model";
           }
         }
       });
-    }
-
-    mounted() {
-      this.loadAuthState();
     }
 
     close() {
@@ -296,23 +305,6 @@ import {UikType} from "@/components/Model";
 
     @Watch("visible")
     onVisibleChange() {
-      this.loadUiks({
-        year: 2019
-      });
-      if (window.filters) {
-        this.crimeTypes = ((window.filters as FilterData).report || []).map(item => {
-          return {
-            value: item,
-            label: item
-          }
-        });
-      }
-      window.setTimeout(() => {
-        const input = document.querySelector("#uik-chooser") as HTMLInputElement;
-          if (input) {
-            input.focus();
-          }
-      }, 1000);
     }
 
     @Watch("form.uik")
@@ -360,17 +352,39 @@ import {UikType} from "@/components/Model";
       }).catch(this.handleError);
     }
 
+    private loadCrimeTypesFromFilters(filters: FilterData) {
+      this.crimeTypes = (filters.report || []).map(item => {
+        return {
+          value: item,
+          label: item
+        }
+      });
+    }
+    private loadCrimeTypes() {
+      if (!window.filters) {
+        this.httpClient.get<FilterData>("/filters.json")
+            .then(response => this.loadCrimeTypesFromFilters(response.data))
+            .catch(this.handleError);
+      } else {
+        this.loadCrimeTypesFromFilters((window.filters as FilterData))
+      }
+    }
+
     private loadUikMembers(query: UikMembersQuery) {
       this.isLoading = true;
         this.httpClient.post<UikMembersResponse>("/_ah/api/blacklist/v1/uik_members", query).then(response => {
+          if (response.data.people) {
             this.uikMembers = response.data.people.map(item => {
               return {
                 value: item.id,
                 label: `${formatStatus(item.status)} ${item.name}`
               }
             });
-            this.uikMembersLoaded = true;
-            this.isLoading = false;
+          } else {
+            this.uikMembers = [];
+          }
+          this.uikMembersLoaded = true;
+          this.isLoading = false;
         }).catch(this.handleError);
     }
 
@@ -384,7 +398,11 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
 (при выполнении запроса: ${error.config.url})
         `;
       } else {
-        this.errorDetails = `Не получен ответ (при выполнении запроса: ${error.config.url})`;
+        if (error.config) {
+          this.errorDetails = `Не получен ответ (при выполнении запроса: ${error.config.url})`;
+        } else {
+          this.errorDetails = error.message;
+        }
       }
     }
     clearError() {

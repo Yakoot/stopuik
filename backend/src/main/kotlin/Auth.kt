@@ -4,6 +4,11 @@ import com.google.api.client.http.HttpStatusCodes
 import com.google.api.server.spi.ServiceException
 import com.google.api.server.spi.auth.common.User
 import com.google.api.server.spi.config.Authenticator
+import com.google.common.io.BaseEncoding
+import org.jooq.SQLDialect
+import org.jooq.impl.DSL.*
+import java.util.*
+import javax.servlet.http.Cookie
 import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -28,10 +33,40 @@ class CheckSignIn : HttpServlet() {
   }
 }
 
+enum class Permission {
+  READER, WRITER
+}
+
 class DoSignIn : HttpServlet() {
   override fun doPost(req: HttpServletRequest, resp: HttpServletResponse) {
-    println("password="+req.getParameter("password") + " user="+req.getParameter("username"))
-    req.getSession(true).setAttribute("userId", req.getParameter("username"))
-    resp.status = HttpStatusCodes.STATUS_CODE_OK
+    val email = req.getParameter("email")
+    if (email == null) {
+      resp.sendError(HttpStatusCodes.STATUS_CODE_BAD_REQUEST, "Не указан email")
+      return
+    }
+    val password = req.getParameter("password")
+    if (password == null) {
+      resp.sendError(HttpStatusCodes.STATUS_CODE_BAD_REQUEST, "Не указан пароль")
+      return
+    }
+
+    using(dataSource, SQLDialect.POSTGRES).use { ctx ->
+      ctx.select(
+          field("uid"),
+          field("name"),
+          field("permission"))
+          .from(table("RegistryUser"))
+          .where(field("email").eq(email)).and(field("password").eq(md5(password)))
+          .fetchOne()?.let {row ->
+            req.getSession(true).let {session ->
+              session.setAttribute("userId", row["uid"].toString())
+              session.setAttribute("created", Date().time)
+            }
+            resp.addCookie(Cookie("userName", BaseEncoding.base64().encode(row["name"].toString().toByteArray())))
+            resp.status = HttpStatusCodes.STATUS_CODE_OK
+          } ?: {
+            resp.sendError(HttpStatusCodes.STATUS_CODE_NOT_FOUND, "Пользователь $email не найден")
+          }()
+    }
   }
 }

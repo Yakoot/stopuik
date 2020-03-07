@@ -199,6 +199,10 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
 
     .timeline {
         margin-top: 5ex;
+        .el-timeline-item__timestamp {
+            font-size: x-large;
+            color: $color-brick;
+        }
     }
 
     .registry {
@@ -209,6 +213,7 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
         display: flex;
         flex-flow: row wrap;
     }
+
 
 </style>
 

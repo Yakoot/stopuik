@@ -4,6 +4,8 @@ package org.spbelect.blacklist
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.google.api.client.http.HttpStatusCodes
+import com.google.api.server.spi.ServiceException
 import com.google.api.server.spi.auth.common.User
 import com.google.api.server.spi.config.Api
 import com.google.api.server.spi.config.ApiMethod
@@ -137,22 +139,22 @@ class Endpoint {
   @ApiMethod(name = "filters", httpMethod = "GET")
   fun filters(message: FilterData): FilterData {
     try {
-      executeQuery("SELECT id, name FROM uik") { rs ->
+      executeQuery("SELECT id, name FROM uik ORDER BY name") { rs ->
         while (rs.next()) {
           val id = rs.getInt("id")
           when {
-            id > 0 -> message.uik.add(id.toString())
+            id >= 0 -> message.uik.add(id.toString())
             id < 0 && id > -100 -> message.tik.add((-id).toString())
             else -> rs.getString("name")?.let { message.ikmo.add(it) }
           }
         }
       }
-      executeQuery("SELECT DISTINCT past_year AS year FROM Blacklist") {
+      executeQuery("SELECT DISTINCT year FROM uik_member_history_crime") {
         while (it.next()) {
           message.year.add(it.getString("year"))
         }
       }
-      executeQuery("SELECT DISTINCT crime_title AS title FROM uik_crime") {
+      executeQuery("SELECT DISTINCT crime_title AS title FROM uik_crime ORDER BY crime_title") {
         while (it.next()) {
           val title = it.getString("title")
           if (!title.isNullOrBlank()) {
@@ -270,8 +272,20 @@ class Endpoint {
 
   @ApiMethod(name = "create_crime", httpMethod = "POST", path = "create_crime", authenticators = [AccessTokenAuthenticator::class])
   fun createCrime(query: CreateCrimeRequest, user: User): CreateCrimeResponse {
+
     val messages = mutableListOf<String>()
     try {
+      val userId = using(dataSource, SQLDialect.POSTGRES).use { ctx ->
+        val userRow = ctx.select(field("id"), field("permission"))
+            .from(table("RegistryUser"))
+            .where(field("uid").eq(user.id))
+            .fetchOne()
+        if (Permission.valueOf(userRow["permission"].toString().toUpperCase()) != Permission.WRITER) {
+          throw ServiceException(HttpStatusCodes.STATUS_CODE_FORBIDDEN, "Вы не можете редактировать реестр, извините")
+        }
+        userRow["id"].toString().toLong()
+      }
+
       using(dataSource, SQLDialect.POSTGRES).use { ctx ->
         val q = ctx.insertInto(table("uik_crime"), field("crime_title"))
             .values(query.crimeType)
@@ -295,6 +309,9 @@ class Endpoint {
           LOGGER.info("Associated link ${it.url} with crime $crimeId")
         }
         messages.add("Проассоциировано с ${query.crimeLinks.size} ссылками")
+
+        ctx.insertInto(table("uik_crime_owner"), field("crime_id"), field("registry_user_id"))
+            .values(crimeId, userId).execute();
 
         return CreateCrimeResponse(crimeId, messages.joinToString(separator = "\n"))
       }
