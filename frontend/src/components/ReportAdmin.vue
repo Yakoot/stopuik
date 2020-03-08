@@ -264,10 +264,11 @@ import {UikType} from "@/components/Model";
     }
 
     close() {
-      window.location.pathname = "/";
+      //window.location.pathname = "/";
+      this.$router.push("/");
     }
     handleClose() {
-      window.location.pathname = "/";
+      this.$router.push("/");
     }
     onSubmit() {
       if (this.form.uik === undefined || this.form.uikMembers === undefined || this.form.crimeType === undefined) {

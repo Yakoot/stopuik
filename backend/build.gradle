@@ -73,7 +73,8 @@ appengine {
     }
     deploy {
         projectId = "spbelect-blacklist-backend"
-        version = "staging"
+        //version = "staging"
+        version = "2020-03-08"
     }
     run {
         // jvmFlags = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"]

@@ -45,7 +45,7 @@
         this.reportVisible = true;
     }
     openReportAdmin() {
-      window.location.pathname = "/admin";
+      this.$router.push('admin');
       this.reportVisible = false;
       this.reportAdminVisible = true;
     }
