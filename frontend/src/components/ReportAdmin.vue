@@ -30,7 +30,7 @@ import {UikType} from "@/components/Model";
                             class="login-button"
                             type="primary"
                             native-type="submit"
-                            block>Тук Тук</el-button>
+                            block>Вход</el-button>
                 </el-form-item>
             </el-form>
         </el-dialog>
@@ -38,8 +38,7 @@ import {UikType} from "@/components/Model";
             title="Редакторский интерфейс"
             visible
             :before-close="handleClose"
-            fullscreen
-            center>
+            fullscreen>
         <el-alert
                 v-if="errorActive"
                 :title="errorTitle"
@@ -48,7 +47,11 @@ import {UikType} from "@/components/Model";
                 show-icon
                 @close="clearError">
         </el-alert>
-        <el-form ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading">
+        <el-form ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading" size="medium">
+            <el-form-item>
+                <p>Здесь можно регистрировать новые нарушения, <b>совершенные в 2019 году</b>. Они сразу же записываются в базу данных и становятся
+                    публично доступны. Не забывайте <b>замазывать персональные данные</b> в прикрепляемых документах.</p>
+            </el-form-item>
             <el-form-item label="Избирательная комиссия">
                 <el-select
                         v-model="form.uik"
@@ -80,6 +83,11 @@ import {UikType} from "@/components/Model";
                             :value="item.value">
                     </el-option>
                 </el-select>
+                <ul class="help">
+                    <li v-if="!uikMembersLoaded">Выберите комиссию</li>
+                    <li v-if="uikMembersLoaded">Если ваш герой в списке отсутствует, напишите его Фамилию Имя Отчество и нажмите Enter</li>
+                    <li v-if="uikMembersLoaded">Вы можете выбрать нескольких героев. Тогда новое нарушение будет проассоциировано с каждым из них</li>
+                </ul>
             </el-form-item>
             <el-form-item label="Тип нарушения">
                 <el-select
@@ -91,7 +99,8 @@ import {UikType} from "@/components/Model";
                             v-for="item in crimeTypes"
                             :key="item.value"
                             :label="item.label"
-                            :value="item.value">
+                            :value="item.value"
+                            :title="item.label">
                     </el-option>
                 </el-select>
             </el-form-item>
@@ -113,7 +122,16 @@ import {UikType} from "@/components/Model";
             </el-form-item>
 
             <el-form-item>
-                <el-button type="primary" @click="onSubmit" :disabled="!submitEnabled">Создать запись</el-button>
+                <el-alert v-if="newUikMembers.length > 0"
+                          :title="'Мы создадим этих героев как членов ' + selectedUik + ' со статусом ПРГ'"
+                          type="warning"
+                          :description="newUikMembers"
+                          show-icon>
+                </el-alert>
+            </el-form-item>
+
+            <el-form-item>
+                <el-button type="primary" @click="onSubmit" :disabled="!submitEnabled" id="btn-submit-crime">Создать запись</el-button>
             </el-form-item>
         </el-form>
         <el-alert
@@ -133,8 +151,8 @@ import {UikType} from "@/components/Model";
   import axios, {AxiosError} from "axios";
   import {
     AllUiksQuery,
-    AllUiksResponse, CreateCrimeRequest, CreateCrimeResponse,
-    FilterData,
+    AllUiksResponse, AllUiksResponseItem, CreateCrimeRequest, CreateCrimeResponse,
+    FilterData, formatUikLabel,
     UikMembersQuery,
     UikMembersResponse,
     UikType
@@ -264,12 +282,27 @@ import {UikType} from "@/components/Model";
     }
 
     close() {
-      //window.location.pathname = "/";
       this.$router.push("/");
     }
     handleClose() {
       this.$router.push("/");
     }
+
+    get newUikMembers(): Array<string> {
+      if (this.form.uikMembers === undefined) {
+        return [];
+      }
+      return this.form.uikMembers.filter(it => typeof it === "string") as Array<string>;
+    }
+
+    get selectedUik(): string {
+      if (this.form.uik === undefined) {
+        return "";
+      }
+      const item = this.allUiks.filter(it => it.value === this.form.uik);
+      return item.length > 0 ? item[0].label : "";
+    }
+
     onSubmit() {
       if (this.form.uik === undefined || this.form.uikMembers === undefined || this.form.crimeType === undefined) {
         return;
@@ -310,6 +343,7 @@ import {UikType} from "@/components/Model";
 
     @Watch("form.uik")
     onUikNumberChange() {
+      this.form.uikMembers = [];
       this.loadUikMembers({
         uik: this.form.uik || 0,
         year: 2019
@@ -345,7 +379,7 @@ import {UikType} from "@/components/Model";
         this.allUiks = response.data.uiks.map(item => {
           return {
             value: item.id,
-            label: `${formatUikType(item.type)} ${item.name}`
+            label: formatUikLabel(item),
           }
         });
         this.allUiksLoaded = true;
@@ -416,15 +450,6 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
       this.successTitle = "";
       this.successDetails = "";
     }
-
-  }
-
-  function formatUikType(type: UikType): string {
-    switch (type) {
-      case "UIK": return "УИК";
-      case "IKMO": return "ИКМО";
-      case "TIK": return "ТИК";
-    }
   }
 
   function formatStatus(status: number): string {
@@ -442,6 +467,9 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
   }
 </script>
 <style lang="scss">
+    .el-dialog__title {
+        font-size: xx-large !important;
+    }
     .el-select {
         width: 100%;
     }
@@ -456,7 +484,22 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
         }
         margin-bottom: 1em;
     }
-    .el-button.is-disabled {
+    ul.help {
+        line-height: normal;
+        opacity: 0.8;
+    }
+    #btn-submit-crime {
+        background: transparent;
         opacity: 0.5;
+        &.is-disabled {
+            opacity: 0.25;
+        }
+        &:hover {
+            opacity: 1.0;
+        }
+        &:focus {
+            opacity: 1.0;
+        }
+
     }
 </style>

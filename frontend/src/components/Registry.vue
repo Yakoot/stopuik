@@ -37,6 +37,7 @@
   import LetterBlock from './LetterBlock.vue'
   import {Component, Vue, Watch} from "vue-property-decorator";
   import {
+    AllUiksResponse, AllUiksResponseItem,
     FilterData,
     SearchQuery,
     SearchResponse,
@@ -135,6 +136,17 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
             this.filterData = {... this.filterData, ...response.data};
             this.loading = false;
           }).catch(this.handleError);
+      this.httpClient.post<AllUiksResponse>("/_ah/api/blacklist/v1/all_uiks", {
+        year: 2019,
+        type: 1
+      }).then(response => {
+        const uikMap: {[key: string]: AllUiksResponseItem}= {};
+        response.data.uiks.forEach(item => {
+          uikMap[item.id] = item;
+        });
+        window.allManagingUiks = uikMap;
+      }).catch(this.handleError);
+
     }
 
     filter(data: SearchQuery) {

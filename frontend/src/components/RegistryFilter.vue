@@ -98,7 +98,8 @@
                   v-for="item in data.report"
                   :key="item"
                   :label="item"
-                  :value="item">
+                  :value="item"
+                  :title="item">
               </el-option>
             </el-select>
           </el-form-item>

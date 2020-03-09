@@ -7,4 +7,5 @@ declare module 'v-mask';
 declare module 'components/About';
 interface Window {
   filters: any;
+  allManagingUiks: {[key: string]: object};
 }

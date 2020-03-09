@@ -5,9 +5,9 @@ import org.jooq.SQLDialect
 import org.jooq.impl.DSL.*
 
 data class UikMemberStatus(
-    var uik: String,
-    var tik: String,
-    var year: String,
+    var uik: Int,
+    var tik: Int?,
+    var year: Int,
     var uik_status: String
 )
 
@@ -103,10 +103,10 @@ fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
         resp.data.add(record)
       }
       record.status.add(UikMemberStatus(
-          it["uik"].toString(),
-          it["tik_id"]?.toString()?.toIntOrNull()?.let { tik_id -> (-tik_id).toString() } ?: "",
-          it["year"].toString(),
-          StatusEnum.values()[it["status"].toString().toInt()].label
+          uik = it["uik"].toString().toInt(),
+          tik = it["tik_id"]?.toString()?.toInt(),
+          year = it["year"].toString().toInt(),
+          uik_status = StatusEnum.values()[it["status"].toString().toInt()].label
       ))
     }
     return resp

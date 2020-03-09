@@ -1,7 +1,7 @@
 export interface UikMemberStatus {
-  uik: string;
-  tik: string;
-  year: string;
+  uik: number;
+  tik: number;
+  year: number;
   uik_status: string;
 }
 
@@ -112,4 +112,18 @@ export interface TimelineResponseItem {
 
 export interface TimelineResponse {
   elections: Array<TimelineResponseItem>
+}
+
+export function formatUikLabel(uik: AllUiksResponseItem | undefined): string {
+  if (uik === undefined) {
+    return "";
+  }
+  if (uik.id > 0) {
+    return `УИК ${uik.name}`;
+  }
+  if (uik.id < -100) {
+    return `ИКМО ${uik.name}`;
+  }
+  return uik.name;
+
 }
