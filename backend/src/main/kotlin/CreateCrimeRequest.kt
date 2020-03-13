@@ -14,11 +14,17 @@ data class CreateCrimeRequestLinkItem(
     var url: String = ""
 )
 
+data class CreateCrimeNewMember(
+    var name: String = "",
+    var status: Int = 0,
+    var id: Int = -1
+)
+
 data class CreateCrimeRequest(
     var year: Int = 2019,
     var uik: Int = 0,
     var uikMembers: List<Int> = listOf(),
-    var newUikMembers: List<String> = listOf(),
+    var newUikMembers: List<CreateCrimeNewMember> = listOf(),
     var crimeType: String = "",
     var crimeLinks: List<CreateCrimeRequestLinkItem> = listOf()
 )
@@ -60,15 +66,15 @@ fun handleCreateCrime(query: CreateCrimeRequest, user: User): CreateCrimeRespons
 
       val uikMembers = query.uikMembers.toMutableList()
 
-      query.newUikMembers.forEach {newFio ->
+      query.newUikMembers.forEach {newMember: CreateCrimeNewMember ->
         val maxId = ctx.select(max(field("id")).`as`("id")).from(table("uik_member"))
             .fetchOne()?.getValue("id")?.toString()?.toInt()
             ?: throw ServiceException(HttpStatusCodes.STATUS_CODE_SERVER_ERROR, "Ошибка при добавлении нового пациента")
         val newMemberId = maxId + 1
         ctx.insertInto(table("uik_member"), field("id"), field("fio"))
-            .values(newMemberId, newFio).execute()
+            .values(newMemberId, newMember.name).execute()
         ctx.insertInto(table("uik_history"), field("uik"), field("year"), field("uik_member"), field("uik_status"))
-            .values(query.uik, query.year, newMemberId, StatusEnum.VOTER.ordinal)
+            .values(query.uik, query.year, newMemberId, newMember.status)
         .execute()
         uikMembers.add(newMemberId)
       }

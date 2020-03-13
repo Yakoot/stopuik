@@ -111,38 +111,50 @@ import {UikType} from "@/components/Model";
                     :prop="'crimeLink' + (index)"
                     :rules="validationRules.crimeLink"
                     class="link-row">
-                <el-input v-model="link.title" class="link-title"></el-input>
-                <el-input v-model="link.url" class="link-url" :id="'crimeLink' + index"></el-input>
+                <el-input v-model="link.title" class="link-title" placeholder="Название ссылки"></el-input>
+                <el-input v-model="link.url" class="link-url" :id="'crimeLink' + index"
+                          type="url"
+                          required
+                          placeholder="https://example.com"></el-input><span class="validity"></span>
 
-                <el-button @click.prevent="removeLink(link)">Удалить</el-button>
+                <el-link icon="el-icon-delete-solid" @click.prevent="removeLink(link)" tabindex="-1">Удалить эту ссылку</el-link>
             </el-form-item>
 
             <el-form-item>
-                <el-button round @click="addLink">Добавить ссылку</el-button>
-            </el-form-item>
-
-            <el-form-item>
-                <el-alert v-if="newUikMembers.length > 0"
-                          :title="'Мы создадим этих героев как членов ' + selectedUik + ' со статусом ПРГ'"
-                          type="warning"
-                          :description="newUikMembers"
-                          show-icon>
-                </el-alert>
+                <el-button icon="el-icon-circle-plus"
+                           @click="addLink"
+                           size="mini" round>Добавить ещё одну ссылку</el-button>
             </el-form-item>
 
             <el-form-item>
                 <el-button type="primary" @click="onSubmit" :disabled="!submitEnabled" id="btn-submit-crime">Создать запись</el-button>
             </el-form-item>
+            <el-form-item>
+                <el-alert id="alert-new-members"
+                          v-if="newUikMembers.length > 0"
+                          :title="'Мы создадим этих героев как членов ' + selectedUik"
+                          type="info"
+                          show-icon>
+                    <el-row v-for="it in newUikMembers">
+                        <el-col :span="2" class="member-status">
+                            <el-tag type="danger">{{formatStatus(it.status)}}</el-tag>
+                        </el-col>
+                        <el-col :span="22">{{it.name}}</el-col>
+                    </el-row>
+                </el-alert>
+            </el-form-item>
+            <el-form-item>
+                <el-alert
+                        v-if="successActive"
+                        :title="successTitle"
+                        type="success"
+                        :description="successDetails"
+                        show-icon
+                        @close="clearSuccess">
+                </el-alert>
+                <p>uik={{form.uik}} member={{form.uikMembers}} crime={{form.crimeType}} links={{form.links}}</p>
+            </el-form-item>
         </el-form>
-        <el-alert
-                v-if="successActive"
-                :title="successTitle"
-                type="success"
-                :description="successDetails"
-                show-icon
-                @close="clearSuccess">
-        </el-alert>
-        <p>uik={{form.uik}} member={{form.uikMembers}} crime={{form.crimeType}} links={{form.links}}</p>
     </el-dialog>
     </div>
 </template>
@@ -152,9 +164,9 @@ import {UikType} from "@/components/Model";
   import {
     AllUiksQuery,
     AllUiksResponse, AllUiksResponseItem, CreateCrimeRequest, CreateCrimeResponse,
-    FilterData, formatUikLabel,
+    FilterData, formatStatus as fmtStatus, formatUikLabel,
     UikMembersQuery,
-    UikMembersResponse,
+    UikMembersResponse, UikMemberDto,
     UikType
   } from "@/components/Model";
   import Axios from "axios";
@@ -180,6 +192,7 @@ import {UikType} from "@/components/Model";
   }
 
   interface FormData {
+    reset(): void;
     uik?: number;
     uikMembers?: Array<number | string>;
     crimeType?: string;
@@ -201,7 +214,13 @@ import {UikType} from "@/components/Model";
     };
 
     private form: FormData = {
-      links: [{title: "", url: ""}]
+      links: [{title: "", url: "https://"}],
+      reset(): void {
+        this.links = [{title: "", url: "https://"}];
+        this.uik = undefined;
+        this.uikMembers = undefined;
+        this.crimeType = undefined;
+      }
     };
 
     private validationRules = {
@@ -231,6 +250,10 @@ import {UikType} from "@/components/Model";
         year: 2019
       });
       this.loadCrimeTypes();
+      this.focusUikChooser();
+    }
+
+    private focusUikChooser() {
       window.setTimeout(() => {
         const input = document.querySelector("#uik-chooser") as HTMLInputElement;
         if (input) {
@@ -238,6 +261,7 @@ import {UikType} from "@/components/Model";
         }
       }, 1000);
     }
+
     login() {
       const data = `email=${encodeURIComponent(this.authForm.email)}&password=${encodeURIComponent(this.authForm.password)}`;
       axios({
@@ -288,11 +312,32 @@ import {UikType} from "@/components/Model";
       this.$router.push("/");
     }
 
-    get newUikMembers(): Array<string> {
+    get newUikMembers(): Array<UikMemberDto> {
       if (this.form.uikMembers === undefined) {
         return [];
       }
-      return this.form.uikMembers.filter(it => typeof it === "string") as Array<string>;
+      let result: Array<UikMemberDto> = [];
+      const names = this.form.uikMembers.filter(it => typeof it === "string") as Array<string>;
+      names.forEach(it => {
+        const lower = it.toLowerCase();
+        let status = 4;
+        if (lower.startsWith("пред.")) {
+          status = 1;
+          it = it.slice(5).trim();
+        } else if (lower.startsWith("зам.")) {
+          status = 2;
+          it = it.slice(4).trim();
+        } else if (lower.startsWith("секр.")) {
+          status = 3;
+          it = it.slice(5).trim();
+        }
+        result.push({
+          id: -1,
+          name: it,
+          status: status
+        })
+      });
+      return result;
     }
 
     get selectedUik(): string {
@@ -310,7 +355,7 @@ import {UikType} from "@/components/Model";
       const query: CreateCrimeRequest = {
         uik: this.form.uik,
         uikMembers: this.form.uikMembers.filter(it => typeof it === "number") as Array<number>,
-        newUikMembers: this.form.uikMembers.filter(it => typeof it === "string") as Array<string>,
+        newUikMembers: this.newUikMembers,
         crimeType: this.form.crimeType,
         crimeLinks: this.form.links
       };
@@ -320,7 +365,9 @@ import {UikType} from "@/components/Model";
             this.successTitle = "Нарушение опубликовано";
             this.successDetails = response.data.message;
             this.successActive = true;
-            window.setInterval(() => this.clearSuccess(), 3000);
+            window.setInterval(() => this.clearSuccess(), 10000);
+            this.form.reset();
+            this.focusUikChooser();
         } else {
           this.errorTitle = "Что-то пошло не так";
           this.errorDetails = `Публикация нарушения завершилась с ошибкой: ${response.data.message}`
@@ -331,7 +378,7 @@ import {UikType} from "@/components/Model";
     }
 
     addLink() {
-      this.form.links.push({title: "", url: "http://"})
+      this.form.links.push({title: "", url: "https://"})
     }
     removeLink(link: LinkItem) {
       this.form.links = this.form.links.filter(item => item !== link);
@@ -370,7 +417,7 @@ import {UikType} from "@/components/Model";
           && this.form.uikMembers.length > 0
           && this.form.crimeType !== undefined
           && this.form.links.length > 0
-          && this.form.links.filter(it => isUrl(it.url)).length > 0;
+          && this.form.links.filter(it => isUrl(it.url)).length == this.form.links.length;
     }
 
     private loadUiks(query: AllUiksQuery) {
@@ -412,7 +459,7 @@ import {UikType} from "@/components/Model";
             this.uikMembers = response.data.people.map(item => {
               return {
                 value: item.id,
-                label: `${formatStatus(item.status)} ${item.name}`
+                label: `${fmtStatus(item.status)} ${item.name}`
               }
             });
           } else {
@@ -450,20 +497,20 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
       this.successTitle = "";
       this.successDetails = "";
     }
+
+    private formatStatus = fmtStatus;
   }
 
-  function formatStatus(status: number): string {
-    switch (status) {
-        case 1: return "Пред.";
-        case 2: return "Зам.";
-        case 3: return "Секр.";
-        case 4: return "ЧПРГ";
-        case 5: return "ЧПСГ";
-        default: return `[${status}]`;
-    }
-  }
   function isUrl(url: string) {
-    return url.trim().startsWith("http://") || url.trim().startsWith("https://");
+    url = url.trim();
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      return false;
+    }
+    const posHostStart = url.indexOf("://") + 3;
+    let posHostEnd = url.indexOf("/", posHostStart);
+    if (posHostEnd == -1) posHostEnd = url.length;
+    const host = url.slice(posHostStart, posHostEnd);
+    return host.indexOf(".") > 0;
   }
 </script>
 <style lang="scss">
@@ -487,6 +534,16 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
     ul.help {
         line-height: normal;
         opacity: 0.8;
+    }
+    #alert-new-members {
+        .el-alert__content {
+            width: 100%;
+            .member-status {
+                padding-right: 0.5em;
+                text-align: right;
+                font-weight: bold;
+            }
+        }
     }
     #btn-submit-crime {
         background: transparent;

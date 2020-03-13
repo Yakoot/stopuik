@@ -74,14 +74,14 @@ export interface UikMembersQuery {
   year: number;
 }
 
-export interface UikMembersResponseItem {
+export interface UikMemberDto {
   id: number;
   name: string;
   status: number;
 }
 
 export interface UikMembersResponse {
-  people: Array<UikMembersResponseItem>
+  people: Array<UikMemberDto>
 }
 
 interface CreateCrimeRequestLinkItem {
@@ -92,7 +92,7 @@ interface CreateCrimeRequestLinkItem {
 export interface CreateCrimeRequest {
   uik: number;
   uikMembers: Array<number>;
-  newUikMembers: Array<string>;
+  newUikMembers: Array<UikMemberDto>;
   crimeType: string;
   crimeLinks: Array<CreateCrimeRequestLinkItem>;
 }
@@ -127,3 +127,15 @@ export function formatUikLabel(uik: AllUiksResponseItem | undefined): string {
   return uik.name;
 
 }
+
+export function formatStatus(status: number): string {
+  switch (status) {
+    case 1: return "Пред.";
+    case 2: return "Зам.";
+    case 3: return "Секр.";
+    case 4: return "ЧПРГ";
+    case 5: return "ЧПСГ";
+    default: return `[${status}]`;
+  }
+}
+
