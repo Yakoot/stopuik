@@ -1,24 +1,30 @@
-import Vue from 'vue'
-import Auth from './Auth.vue';
-import ElementUI from 'element-ui'
 import './assets/style/element-variables.scss'
 import * as firebase from "firebase/app";
-// Add the Firebase products that you want to use
 import "firebase/auth";
 import * as firebaseui from "firebaseui";
+import {initFirebase} from "@/AuthInit";
 
-var firebaseConfig = {
-  apiKey: "AIzaSyASK-NImbNMQ6AirjzciKb-W0cPB41_Duc",
-  authDomain: "blacklist-ff68d.firebaseapp.com",
-  databaseURL: "https://blacklist-ff68d.firebaseio.com",
-  projectId: "blacklist-ff68d",
-  storageBucket: "blacklist-ff68d.appspot.com",
-  messagingSenderId: "540285171734",
-  appId: "1:540285171734:web:a7481335bc79a9c2095d37",
-  measurementId: "G-15KQSBGJD6"
-};
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+initFirebase();
+
+function getRedirectUrl(): string {
+  const qd: {[key: string]: Array<string>} = {};
+  if (window.location.search) {
+    window.location.search.substr(1)
+        .split("&")
+        .forEach(item => {
+          const s = item.split("=");
+          const k = s[0];
+          const v = s[1] ? decodeURIComponent(s[1]) : "";
+          if (!qd[k]) {
+            qd[k] = []
+          }
+          qd[k].push(v);
+        });
+  }
+  const v = qd["redirect"];
+  return v ? v[0] : "/";
+}
+
 const config = {
   callbacks: {
     signInSuccessWithAuthResult: function(authResult: any, redirectUrl: any) {
@@ -35,7 +41,7 @@ const config = {
   },
   // Will use popup for IDP Providers sign-in flow instead of the default, redirect.
   signInFlow: 'popup',
-  signInSuccessUrl: '/',
+  signInSuccessUrl: getRedirectUrl(),
   signInOptions: [
     // Leave the lines as is for the providers you want to offer your users.
     firebase.auth.EmailAuthProvider.PROVIDER_ID,
@@ -45,12 +51,5 @@ const config = {
   // Privacy policy url.
   privacyPolicyUrl: '/about'
 };
-var ui = new firebaseui.auth.AuthUI(firebase.auth());
+const ui = new firebaseui.auth.AuthUI(firebase.auth());
 ui.start('#app', config);
-//
-// Vue.config.productionTip = false;
-// Vue.use(ElementUI);
-//
-// new Vue({
-//   render: h => h(Auth)
-// }).$mount('#app');

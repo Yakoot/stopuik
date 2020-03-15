@@ -1,44 +1,38 @@
 import {UikType} from "@/components/Model";
 <template>
     <div>
-        <el-dialog  v-if="authState === 1"
-                    title="Вход для редакторов"
-                    visible
-                    :before-close="handleClose"
-                    center>
-            <el-alert
-                    v-if="errorActive"
-                    :title="errorTitle"
-                    type="error"
-                    :description="errorDetails"
-                    show-icon
-                    @close="clearError"></el-alert>
-            <el-form ref="authForm" :model="authForm" @submit.native.prevent="login">
-                <el-form-item prop="username">
-                    <el-input v-model="authForm.email" placeholder="Адрес электронной почты" prefix-icon="fas fa-user"></el-input>
-                </el-form-item>
-                <el-form-item prop="password">
-                    <el-input
-                            v-model="authForm.password"
-                            placeholder="Пароль"
-                            type="password"
-                            prefix-icon="fas fa-lock"
-                    ></el-input>
-                </el-form-item>
-                <el-form-item>
-                    <el-button
-                            class="login-button"
-                            type="primary"
-                            native-type="submit"
-                            block>Вход</el-button>
-                </el-form-item>
-            </el-form>
-        </el-dialog>
-    <el-dialog  v-if="authState === 0"
-            title="Редакторский интерфейс"
-            visible
-            :before-close="handleClose"
-            fullscreen>
+        <div class="header">
+            <div class="header-title">
+                <div class="logo-row">
+                    <div class="first-title">РЕЕСТР НАРУШЕНИЙ</div>
+                    <img src="../assets/images/logo-head.png" height="20">
+                </div>
+                <div class="second-title">Редакторский интерфейс</div>
+                <div class="second-title"><el-link href="/" icon="el-icon-back">Назад к поиску</el-link></div>
+            </div>
+            <div>
+            <div class="second-title">{{userName}} <el-button type="danger" round size="small" @click="signOut">Выйти</el-button></div>
+            <div class="third-title">{{userEmail}}</div>
+            </div>
+        </div>
+        <el-alert
+                v-if="authState === 3"
+                :title="'Подтвердите адрес электронной почты'"
+                type="warning"
+                :description="'Мы послали вам письмо со ссылкой для подтверждения адреса электронной почты. Пожалуйста, найдите письмо в почте и пройдите по ссылке.'"
+                show-icon
+                @close="handleClose">
+        </el-alert>
+        <el-alert
+                v-if="authState === 4"
+                :title="'Кажется, у вас нет редакторских прав'"
+                type="error"
+                show-icon
+                @close="handleClose">
+            <div>К сожалению, похоже что вы не зарегистрированы у нас как редактор. Если вы считаете, что это недоразумение, напишите
+            нам письмо.
+            </div>
+        </el-alert>
         <el-alert
                 v-if="errorActive"
                 :title="errorTitle"
@@ -47,7 +41,7 @@ import {UikType} from "@/components/Model";
                 show-icon
                 @close="clearError">
         </el-alert>
-        <el-form ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading" size="medium">
+        <el-form v-if="authState === 0" ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading" size="medium">
             <el-form-item>
                 <p>Здесь можно регистрировать новые нарушения, <b>совершенные в 2019 году</b>. Они сразу же записываются в базу данных и становятся
                     публично доступны. Не забывайте <b>замазывать персональные данные</b> в прикрепляемых документах.</p>
@@ -155,7 +149,6 @@ import {UikType} from "@/components/Model";
                 <p>uik={{form.uik}} member={{form.uikMembers}} crime={{form.crimeType}} links={{form.links}}</p>
             </el-form-item>
         </el-form>
-    </el-dialog>
     </div>
 </template>
 <script lang="ts">
@@ -169,7 +162,8 @@ import {UikType} from "@/components/Model";
     UikMembersResponse, UikMemberDto,
     UikType
   } from "@/components/Model";
-  import Axios from "axios";
+  import {initFirebase} from "@/AuthInit";
+  import * as firebase from "firebase";
 
   interface UikDropdownItem {
     value: number;
@@ -199,7 +193,7 @@ import {UikType} from "@/components/Model";
     links: Array<LinkItem>;
   }
 
-  enum AuthState { OK, NOT_AUTHENTICATED, UNKNOWN }
+  enum AuthState { OK, NOT_AUTHENTICATED, UNKNOWN, NEED_EMAIL_CONFIRMATION, FORBIDDEN }
   @Component({
   })
   export default class ReportAdmin extends Vue {
@@ -230,6 +224,8 @@ import {UikType} from "@/components/Model";
     };
 
     private authState: AuthState = AuthState.UNKNOWN;
+    private userName = "";
+    private userEmail = "";
     private isLoading = false;
     private allUiks: Array<UikDropdownItem> = [];
     private allUiksLoaded = false;
@@ -245,7 +241,7 @@ import {UikType} from "@/components/Model";
     private successDetails = "";
 
     mounted() {
-      this.loadAuthState();
+      this.login();
       this.loadUiks({
         year: 2019
       });
@@ -263,19 +259,47 @@ import {UikType} from "@/components/Model";
     }
 
     login() {
-      const data = `email=${encodeURIComponent(this.authForm.email)}&password=${encodeURIComponent(this.authForm.password)}`;
-      axios({
-        url: "/_ah/signin/do",
-        method: "POST",
-        data: data,
-        headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' }
-      }).then(response => {
-        if (response.status === 200) {
-          this.loadAuthState();
+      initFirebase();
+      firebase.auth().onAuthStateChanged(user => {
+        console.dir(user);
+        if (user && user.email) {
+          this.userName = user.displayName || "";
+          this.userEmail = user.email;
+          if (user.emailVerified) {
+            const data = `email=${encodeURIComponent(user.email)}`;
+            axios({
+              url: "/_ah/signin/do",
+              method: "POST",
+              data: data,
+              headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8'}
+            }).then(response => {
+              if (response.status === 200) {
+                this.loadAuthState();
+              } else {
+                this.errorActive = true;
+                this.errorTitle = "Что-то пошло не так";
+                this.errorDetails = response.statusText;
+              }
+            }).catch((error: AxiosError) => {
+                if (error.response && error.response.status === 404) {
+                  this.authState = AuthState.FORBIDDEN;
+                } else {
+                  this.handleError(error);
+                }
+            });
+          } else {
+            user.sendEmailVerification().then(() => {
+              this.authState = AuthState.NEED_EMAIL_CONFIRMATION;
+            }).catch(error => {
+              this.authState = AuthState.UNKNOWN;
+              this.isLoading = false;
+              this.errorActive = true;
+              this.errorTitle = "Ошибка при аутентификации";
+              this.errorDetails = error;
+            });
+          }
         } else {
-          this.errorActive = true;
-          this.errorTitle = "Что-то пошло не так";
-          this.errorDetails = response.statusText;
+          window.location.pathname = `/login&redirect=${encodeURIComponent('/edit')}`;
         }
       });
     }
@@ -305,11 +329,22 @@ import {UikType} from "@/components/Model";
       });
     }
 
+    signOut() {
+      firebase.auth().signOut().then(() => {
+        this.close();
+      }).catch(error => {
+        this.authState = AuthState.UNKNOWN;
+        this.isLoading = false;
+        this.errorActive = true;
+        this.errorTitle = "Ошибка при выходе";
+        this.errorDetails = error;
+      });
+    }
     close() {
-      this.$router.push("/");
+      //window.location.pathname = "/";
     }
     handleClose() {
-      this.$router.push("/");
+      //window.location.pathname = "/";
     }
 
     get newUikMembers(): Array<UikMemberDto> {
@@ -514,6 +549,7 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
   }
 </script>
 <style lang="scss">
+    @import '../assets/style/theme';
     .el-dialog__title {
         font-size: xx-large !important;
     }
@@ -559,4 +595,41 @@ HTTP ${error.response.status}: ${error.response.statusText}\n
         }
 
     }
+    div.header {
+        padding: 40px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+
+    .logo-row {
+        display: flex;
+        img {
+            margin-left: 20px;
+        }
+    }
+
+    .header-title {
+        div {
+            text-align: left;
+        }
+    }
+
+    .first-title {
+        font-family: Lisa;
+        font-size: 31px;
+        color: $color-brick;
+    }
+
+    .second-title {
+        font-size: 18px;
+        color: black;
+        margin-top: 10px;
+    }
+
+    .third-title {
+        font-size: 12px;
+        color: $color-grey;
+    }
 </style>
+

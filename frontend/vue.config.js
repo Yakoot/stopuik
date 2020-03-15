@@ -15,6 +15,12 @@ module.exports = {
           template: './public/auth.html',
           filename: 'auth.html',
           title: 'Реестр Нарушений: Аутентификация'
+      },
+      edit: {
+          entry: './src/edit.ts',
+          template: './public/edit.html',
+          filename: 'edit.html',
+          title: 'Реестр Нарушений: Редакторский Интерфейс'
       }
     }
 }

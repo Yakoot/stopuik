@@ -6,7 +6,7 @@
             fullscreen
             center>
         <el-row type="flex" justify="end">
-            <el-button type="text" @click="openAdminUi">Я админ</el-button>
+            <el-button type="text" @click="openAdminUi">Я редактор</el-button>
         </el-row>
         <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSf0uKaYdS8tcE-cn61WLMjrssR7wUHR0lZpeUbAJ2VzxWOUOQ/viewform?embedded=true" width="100%" height="700" frameborder="0" marginheight="0" marginwidth="0">Загрузка…</iframe>
     </el-dialog>
@@ -22,7 +22,7 @@
                 this.$emit("closeReport");
             },
             openAdminUi() {
-                this.$emit("openReportAdmin")
+                window.location.pathname = "/edit";
             }
         }
     };

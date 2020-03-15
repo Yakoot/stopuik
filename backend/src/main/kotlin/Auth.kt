@@ -44,11 +44,6 @@ class DoSignIn : HttpServlet() {
       resp.sendError(HttpStatusCodes.STATUS_CODE_BAD_REQUEST, "Не указан email")
       return
     }
-    val password = req.getParameter("password")
-    if (password == null) {
-      resp.sendError(HttpStatusCodes.STATUS_CODE_BAD_REQUEST, "Не указан пароль")
-      return
-    }
 
     using(dataSource, SQLDialect.POSTGRES).use { ctx ->
       ctx.select(
@@ -56,7 +51,7 @@ class DoSignIn : HttpServlet() {
           field("name"),
           field("permission"))
           .from(table("RegistryUser"))
-          .where(field("email").eq(email)).and(field("password").eq(md5(password)))
+          .where(field("email").eq(email))
           .fetchOne()?.let {row ->
             req.getSession(true).let {session ->
               session.setAttribute("userId", row["uid"].toString())

@@ -35,10 +35,9 @@ dependencies {
     // Postgres stuff
     compile 'org.postgresql:postgresql:42.+'
     compile 'com.zaxxer:HikariCP:2.+'
-    // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-kotlin
     compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.10.1'
-// https://mvnrepository.com/artifact/org.jooq/jooq
     compile group: 'org.jooq', name: 'jooq', version: '3.12.3'
+    compile group: 'org.tuckey', name: 'urlrewritefilter', version: '4.0.4'
 
 
     testCompile 'com.google.appengine:appengine-testing:+'
