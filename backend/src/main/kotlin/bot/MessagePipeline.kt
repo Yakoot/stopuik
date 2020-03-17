@@ -22,6 +22,17 @@ typealias MatchHandler = (MatchResult) -> Response?
 
 class ChainBuilder {
   private val handlers = mutableListOf<MessageHandler>()
+  fun onCommand(command: String, code: MessageHandler) {
+    this.handlers += { msg ->
+      val slashedCommand = "/$command"
+      if (msg.toLowerCase().startsWith(slashedCommand)) {
+        code(msg.substring(slashedCommand.length).trim())
+      } else {
+        null
+      }
+    }
+  }
+
   fun onRegexp(pattern: String, options: Set<RegexOption> = setOf(), code: MatchHandler) {
     val regexp = pattern.toRegex(options)
     this.handlers += { msg ->

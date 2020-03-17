@@ -1,5 +1,6 @@
 package org.spbelect.blacklist.bot
 
+import org.slf4j.LoggerFactory
 import org.spbelect.blacklist.SearchQuery
 import org.spbelect.blacklist.handleSearchQuery
 import org.telegram.telegrambots.ApiContextInitializer
@@ -37,6 +38,7 @@ class PublicBot : TelegramLongPollingBot(DefaultBotOptions().apply {
   }
   override fun onUpdateReceived(update: Update) {
     update.message?.let {msg ->
+
       update.handle()?.let {resp ->
         try {
           execute(SendMessage().apply {
@@ -54,7 +56,18 @@ class PublicBot : TelegramLongPollingBot(DefaultBotOptions().apply {
   override fun getBotToken(): String = System.getenv("BOT_TOKEN") ?: ""
 }
 
+fun help(): Response = Response("""
+      Я умею искать по совпадениям в ФИО. Просто пошлите мне любую подстроку, например слово 'лето', убрав кавычки.
+      Я умею искать по номеру комиссии. Просто пошлите мне номер УИК.
+      """.trimIndent())
+
 fun (Update).handle(): Response? = chain {
+  onCommand("help") {
+    help()
+  }
+  onCommand("start") {
+    help()
+  }
     onRegexp("""\d{1,4}""") {
       handleSearchQuery(SearchQuery(uik = it.value)).let {resp ->
         Response(resp.data.map { it.name }.joinToString("\n"))
@@ -84,7 +97,9 @@ fun (Update).handle(): Response? = chain {
           }
           resultBuilder.appendln("============\n")
         }
-        Response(resultBuilder.toString())
+        Response(if (resultBuilder.isEmpty()) "Нет результатов" else resultBuilder.toString())
       }
     }
   }.handle(this.message)
+
+private val LOGGER = LoggerFactory.getLogger("PublicBot")
