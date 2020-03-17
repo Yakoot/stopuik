@@ -3,7 +3,9 @@ package org.spbelect.blacklist.bot
 import org.spbelect.blacklist.SearchQuery
 import org.spbelect.blacklist.handleSearchQuery
 import org.telegram.telegrambots.ApiContextInitializer
+import org.telegram.telegrambots.bots.DefaultBotOptions
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
+import org.telegram.telegrambots.meta.ApiConstants
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
@@ -11,7 +13,6 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 import javax.servlet.ServletContextEvent
 import javax.servlet.ServletContextListener
 import javax.servlet.annotation.WebListener
-import kotlin.text.StringBuilder
 
 @WebListener
 class ServletContextHook : ServletContextListener {
@@ -28,7 +29,9 @@ class ServletContextHook : ServletContextListener {
   }
 }
 
-class PublicBot : TelegramLongPollingBot() {
+class PublicBot : TelegramLongPollingBot(DefaultBotOptions().apply {
+  baseUrl = System.getenv("TG_BASE_URL") ?: ApiConstants.BASE_URL
+}) {
   init {
     println("Created PublicBot")
   }

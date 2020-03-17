@@ -299,7 +299,7 @@ import {UikType} from "@/components/Model";
             });
           }
         } else {
-          window.location.pathname = `/login&redirect=${encodeURIComponent('/edit')}`;
+          window.location.href = `/login?redirect=${encodeURIComponent('/edit')}`;
         }
       });
     }
