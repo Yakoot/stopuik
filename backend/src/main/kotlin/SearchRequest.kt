@@ -1,12 +1,14 @@
 // Copyright (C) 2020 Наблюдатели Петербурга
 package org.spbelect.blacklist
 
+import org.jooq.Record6
 import org.jooq.SQLDialect
+import org.jooq.SelectConditionStep
 import org.jooq.impl.DSL.*
 
 data class UikMemberStatus(
     var uik: Int,
-    var tik: Int?,
+    var tik: Int? = null,
     var year: Int,
     var uik_status: String
 )
@@ -17,13 +19,17 @@ data class Crime(
 )
 
 data class SearchQuery(
-    var uik: String = "",
+    var uik: Int = 0,
     var tik: String = "",
     var ikmo: String = "",
     var year: String = "",
     var report: String = "",
     var name: String = ""
-)
+) {
+  val isBlank: Boolean get() {
+    return listOf(year, ikmo, tik, report, name).all { it.isBlank() } && uik == 0
+  }
+}
 
 data class SearchResult(
     var name: String = "",
@@ -40,20 +46,20 @@ enum class StatusEnum(val label: String) {
   NOBODY("никто"), HEAD("председатель"), DEPUTY_HEAD("зам. председателя"), SECRETARY("секретарь"), VOTER("ПРГ")
 }
 
-fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
-  println("search: $searchQuery")
-  val resp = SearchResponse()
-  if (listOf(searchQuery.uik, searchQuery.year, searchQuery.ikmo, searchQuery.tik, searchQuery.report, searchQuery.name).all { it.isBlank() }) {
-    return resp
-  }
+typealias SearchRecord = Record6<Int, Int, Int, String, Int, Int>
+fun (SearchRecord).status() = this.value5()
+fun (SearchRecord).year() = this.value1()
+fun (SearchRecord).name() = this.value4()
+
+fun <T> prepareSearchQuery(searchQuery: SearchQuery, code: (SelectConditionStep<SearchRecord>) -> T): T {
   using(dataSource, SQLDialect.POSTGRES).use { ctx ->
     var q = ctx.select(
-            field("year"),
-            field("uik"),
-            field("uik_member"),
-            field("fio"),
-            field("uik_status").`as`("status"),
-            field("tik_id"))
+            field("year", Int::class.java),
+            field("uik", Int::class.java),
+            field("uik_member", Int::class.java),
+            field("fio", String::class.java),
+            field("uik_status", Int::class.java).`as`("status"),
+            field("tik_id", Int::class.java))
         .from(table("UikMemberCrimeView"))
         .where(trueCondition())
     if (searchQuery.report.isNotBlank()) {
@@ -64,10 +70,10 @@ fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
     }
     searchQuery.year.toIntOrNull()?.let { q = q.and(field("year").eq(it)) }
 
-    val uik = searchQuery.uik.toIntOrNull()
-    if (uik != null)  {
+    val uik = searchQuery.uik
+    if (uik != 0) {
       q = q.and(field("uik").eq(uik))
-      searchQuery.tik.toIntOrNull()?.let {tik ->
+      searchQuery.tik.toIntOrNull()?.let { tik ->
         q = q.and(field("tik_id").eq(0 - tik))
       }
       if (searchQuery.ikmo.isNotBlank()) {
@@ -82,7 +88,7 @@ fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
       }
       val ikmo = searchQuery.ikmo
       if (ikmo.isNotBlank()) {
-        getIkmoId(ikmo)?.let {ikmoId ->
+        getIkmoId(ikmo)?.let { ikmoId ->
           q = q.and(
               field("uik").eq(ikmoId).or(field("ikmo_name").eq(ikmo))
           )
@@ -90,7 +96,20 @@ fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
       }
     }
 
+    return code(q)
+  }
+}
+
+fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
+  println("search: $searchQuery")
+  if (searchQuery.isBlank) {
+    return SearchResponse()
+  }
+  return prepareSearchQuery(searchQuery) {q ->
+    val resp = SearchResponse()
     var record = SearchResult()
+
+    println(q)
     q.orderBy(
         field("fio"),
         field("year"),
@@ -106,9 +125,9 @@ fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
           uik = it["uik"].toString().toInt(),
           tik = it["tik_id"]?.toString()?.toInt(),
           year = it["year"].toString().toInt(),
-          uik_status = StatusEnum.values()[it["status"].toString().toInt()].label
+          uik_status = StatusEnum.values()[it.status()].label
       ))
     }
-    return resp
+    resp
   }
 }

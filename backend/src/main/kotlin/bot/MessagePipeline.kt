@@ -1,27 +1,21 @@
 package org.spbelect.blacklist.bot
 
+import org.telegram.telegrambots.meta.api.methods.BotApiMethod
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Message
+import java.io.Serializable
 
-/**
- * @author dbarashev@bardsoftware.com
- */
-fun chain(code: ChainBuilder.() -> Unit): ChainBuilder {
-  return try {
-    ChainBuilder().also(code)
-  } catch (e: Exception) {
-    e.printStackTrace()
-    FAILING_CHAIN_BUILDER
-  }
-}
-val FAILING_CHAIN_BUILDER = ChainBuilder()
 
 data class Response(val text: String)
 
-typealias MessageHandler = (String) -> Response?
-typealias MatchHandler = (MatchResult) -> Response?
+typealias MessageHandler = (String) -> Unit
+typealias MatchHandler = (MatchResult) -> Unit
 
-class ChainBuilder {
+open class ChainBuilder(val message: Message) {
   private val handlers = mutableListOf<MessageHandler>()
+  private var stopped = false
+  private val replies = mutableListOf<BotApiMethod<Serializable>>()
+
   fun onCommand(command: String, code: MessageHandler) {
     this.handlers += { msg ->
       val slashedCommand = "/$command"
@@ -42,17 +36,30 @@ class ChainBuilder {
     }
   }
 
-  fun handle(message: Message?): Response? {
+  fun reply(msg: String, stop: Boolean = true) {
+    replies.add(SendMessage().apply {
+      setChatId(message.chatId)
+      enableMarkdownV2(true)
+      text = msg
+    } as BotApiMethod<Serializable>)
+    this.stopped = this.stopped || stop
+  }
+
+  fun handle(): List<out BotApiMethod<Serializable>> {
     try {
-      return message?.text?.let { msg ->
+      message.text?.let { msg ->
         for (h in handlers) {
-          h(msg)?.let { return it }
+          h(msg)
+          if (this.stopped) {
+            break
+          }
         }
-        return null
       }
     } catch (ex: Exception) {
       ex.printStackTrace()
-      return null;
     }
+    return replies
   }
+
+
 }

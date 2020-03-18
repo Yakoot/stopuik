@@ -48,7 +48,7 @@ dependencies {
 }
 
 task processFrontendResources {
-    dependsOn ":frontend:assembleFrontend"
+    //dependsOn ":frontend:assembleFrontend"
     description "Copy client resources into build directories"
     doLast {
         delete "${projectDir}/src/main/webapp/js", "${projectDir}/src/main/webapp/css"

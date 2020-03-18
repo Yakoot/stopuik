@@ -8,9 +8,10 @@ import org.telegram.telegrambots.bots.DefaultBotOptions
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.ApiConstants
 import org.telegram.telegrambots.meta.TelegramBotsApi
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import java.io.Serializable
 import javax.servlet.ServletContextEvent
 import javax.servlet.ServletContextListener
 import javax.servlet.annotation.WebListener
@@ -38,16 +39,10 @@ class PublicBot : TelegramLongPollingBot(DefaultBotOptions().apply {
   }
   override fun onUpdateReceived(update: Update) {
     update.message?.let {msg ->
-
-      update.handle()?.let {resp ->
-        try {
-          execute(SendMessage().apply {
-            setChatId(msg.chatId)
-            text = resp.text
-          })
-        } catch (e: TelegramApiException) {
-          e.printStackTrace()
-        }
+      try {
+        update.handle().forEach { reply -> execute(reply) }
+      } catch (ex: Exception) {
+        ex.printStackTrace()
       }
     }
   }
@@ -61,45 +56,49 @@ fun help(): Response = Response("""
       Я умею искать по номеру комиссии. Просто пошлите мне номер УИК.
       """.trimIndent())
 
-fun (Update).handle(): Response? = chain {
+fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.message).apply {
   onCommand("help") {
-    help()
+    reply(help().text)
   }
   onCommand("start") {
-    help()
+    reply(help().text)
   }
-    onRegexp("""\d{1,4}""") {
-      handleSearchQuery(SearchQuery(uik = it.value)).let {resp ->
-        Response(resp.data.map { it.name }.joinToString("\n"))
-      }
+  onRegexp("""\d{1,4}""") {
+    handleUikBlacklist(it.value.toInt()) { msg ->
+      reply(msg)
     }
-    onRegexp("""(УИК)\s*(\d{1,4})""", setOf(RegexOption.IGNORE_CASE)) {
-      val (uikType, uikNum) = it.destructured
-      handleSearchQuery(SearchQuery(uik = uikNum)).let {resp ->
-        Response(resp.data.map { it.name }.joinToString("\n"))
-      }
+  }
+  onRegexp("""(УИК)\s*(\d{1,4})""", setOf(RegexOption.IGNORE_CASE)) {
+    val (uikType, uikNum) = it.destructured
+    handleUikBlacklist(uikNum.toInt()) { msg ->
+      reply(msg)
     }
-    onRegexp("""(ТИК)\s*(\d{1,2})""", setOf(RegexOption.IGNORE_CASE)) {
-      val (uikType, uikNum) = it.destructured
-      Response("Ищем комиссию ${uikType.toUpperCase()} ${uikNum}")
-    }
-    onRegexp(""".+""", setOf(RegexOption.IGNORE_CASE)) {
-      handleSearchQuery(SearchQuery(name = it.value)).let {resp ->
-        val resultBuilder = StringBuilder()
-        resp.data.forEach { person ->
-          resultBuilder.appendln(person.name)
-          person.status.forEach { status ->
-            resultBuilder.appendln("${status.year} ${status.uik_status} ${status.uik}")
-          }
-          resultBuilder.appendln("")
-          person.violations.forEach { year, crime ->
-            resultBuilder.appendln("$year: $crime")
-          }
-          resultBuilder.appendln("============\n")
+  }
+  onRegexp("""(ТИК)\s*(\d{1,2})""", setOf(RegexOption.IGNORE_CASE)) {
+    //val (uikType, uikNum) = it.destructured
+    reply("Поиск по ТИК пока не сделан\\.")
+  }
+  onRegexp("""(ИКМО)\s*(.+)""", setOf(RegexOption.IGNORE_CASE)) {
+    //val (uikType, uikNum) = it.destructured
+    reply("Поиск по ИКМО пока не сделан\\.")
+  }
+  onRegexp(""".+""", setOf(RegexOption.IGNORE_CASE)) {
+    handleSearchQuery(SearchQuery(name = it.value)).let {resp ->
+      val resultBuilder = StringBuilder()
+      resp.data.forEach { person ->
+        resultBuilder.appendln(person.name)
+        person.status.forEach { status ->
+          resultBuilder.appendln("${status.year} ${status.uik_status} ${status.uik}")
         }
-        Response(if (resultBuilder.isEmpty()) "Нет результатов" else resultBuilder.toString())
+        resultBuilder.appendln("")
+        person.violations.forEach { year, crime ->
+          resultBuilder.appendln("$year: $crime")
+        }
+        resultBuilder.appendln("============\n")
       }
+      reply(if (resultBuilder.isEmpty()) "Нет результатов" else resultBuilder.toString())
     }
-  }.handle(this.message)
+  }
+}.handle()
 
 private val LOGGER = LoggerFactory.getLogger("PublicBot")
