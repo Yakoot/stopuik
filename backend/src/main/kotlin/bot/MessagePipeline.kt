@@ -3,10 +3,13 @@ package org.spbelect.blacklist.bot
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 import java.io.Serializable
 
 
 data class Response(val text: String)
+data class BtnData(val label: String, val callbackData: String)
 
 typealias MessageHandler = (String) -> Unit
 typealias MatchHandler = (MatchResult) -> Unit
@@ -36,11 +39,17 @@ open class ChainBuilder(val message: Message) {
     }
   }
 
-  fun reply(msg: String, stop: Boolean = true) {
+  fun reply(msg: String, stop: Boolean = true, buttons: List<BtnData> = listOf(), maxCols: Int = Int.MAX_VALUE, isMarkdown: Boolean = true) {
     replies.add(SendMessage().apply {
       setChatId(message.chatId)
-      enableMarkdownV2(true)
+      enableMarkdownV2(isMarkdown)
       text = msg
+      println(buttons)
+      if (buttons.isNotEmpty()) {
+        replyMarkup = InlineKeyboardMarkup(
+            buttons.map { InlineKeyboardButton(it.label).also { btn -> btn.callbackData = it.callbackData } }.chunked(maxCols)
+        )
+      }
     } as BotApiMethod<Serializable>)
     this.stopped = this.stopped || stop
   }

@@ -1,5 +1,7 @@
+// Copyright (C) 2020 Наблюдатели Петербурга
 package org.spbelect.blacklist.bot
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.slf4j.LoggerFactory
 import org.spbelect.blacklist.SearchQuery
 import org.spbelect.blacklist.handleSearchQuery
@@ -8,6 +10,7 @@ import org.telegram.telegrambots.bots.DefaultBotOptions
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.ApiConstants
 import org.telegram.telegrambots.meta.TelegramBotsApi
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
@@ -15,6 +18,10 @@ import java.io.Serializable
 import javax.servlet.ServletContextEvent
 import javax.servlet.ServletContextListener
 import javax.servlet.annotation.WebListener
+
+fun main() {
+  ServletContextHook().contextInitialized(null)
+}
 
 @WebListener
 class ServletContextHook : ServletContextListener {
@@ -38,6 +45,12 @@ class PublicBot : TelegramLongPollingBot(DefaultBotOptions().apply {
     println("Created PublicBot")
   }
   override fun onUpdateReceived(update: Update) {
+    update.callbackQuery?.let {
+      AnswerCallbackQuery().apply {
+        callbackQueryId = it.id
+        text = "Фича в разработке!"
+      }.also { execute(it) }
+    }
     update.message?.let {msg ->
       try {
         update.handle().forEach { reply -> execute(reply) }
@@ -47,8 +60,8 @@ class PublicBot : TelegramLongPollingBot(DefaultBotOptions().apply {
     }
   }
 
-  override fun getBotUsername() = "spbelect_public_bot"
-  override fun getBotToken(): String = System.getenv("BOT_TOKEN") ?: ""
+  override fun getBotUsername() = System.getenv("TG_BOT_USERNAME") ?: "spbelect_public_bot"
+  override fun getBotToken(): String = System.getenv("TG_BOT_TOKEN") ?: ""
 }
 
 fun help(): Response = Response("""
@@ -58,10 +71,10 @@ fun help(): Response = Response("""
 
 fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.message).apply {
   onCommand("help") {
-    reply(help().text)
+    reply(help().text, isMarkdown = false)
   }
   onCommand("start") {
-    reply(help().text)
+    reply(help().text, isMarkdown = false)
   }
   onRegexp("""\d{1,4}""") {
     handleUikBlacklist(it.value.toInt()) { msg ->
@@ -83,20 +96,10 @@ fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.
     reply("Поиск по ИКМО пока не сделан\\.")
   }
   onRegexp(""".+""", setOf(RegexOption.IGNORE_CASE)) {
-    handleSearchQuery(SearchQuery(name = it.value)).let {resp ->
-      val resultBuilder = StringBuilder()
-      resp.data.forEach { person ->
-        resultBuilder.appendln(person.name)
-        person.status.forEach { status ->
-          resultBuilder.appendln("${status.year} ${status.uik_status} ${status.uik}")
-        }
-        resultBuilder.appendln("")
-        person.violations.forEach { year, crime ->
-          resultBuilder.appendln("$year: $crime")
-        }
-        resultBuilder.appendln("============\n")
-      }
-      reply(if (resultBuilder.isEmpty()) "Нет результатов" else resultBuilder.toString())
+    handlePersonBlacklist(it.value) { msg, jsons ->
+      reply(msg, buttons = jsons.map { node ->
+        BtnData(node["label"].textValue(), (node as ObjectNode).without<ObjectNode>("label").toString())
+      }, maxCols = 1, isMarkdown = false)
     }
   }
 }.handle()
