@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
 import org.spbelect.blacklist.SearchQuery
 import org.spbelect.blacklist.handleSearchQuery
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery
 
 /**
  * @author dbarashev@bardsoftware.com

@@ -1,6 +1,9 @@
 // Copyright (C) 2020 Наблюдатели Петербурга
 package org.spbelect.blacklist
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.jooq.Record6
 import org.jooq.SQLDialect
 import org.jooq.SelectConditionStep
@@ -129,5 +132,53 @@ fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
       ))
     }
     resp
+  }
+}
+
+fun handleDetailsQuery(query: UikCrimeQuery): UikCrimeResponse {
+  using(dataSource, SQLDialect.POSTGRES).use { ctx ->
+    // select year, uik, crime_id, crime_title, json_build_object('link_description', link_title, 'link', link_url)
+    // from uikmembercrimeview u join uik_crime_links l on crime_id = l.uik_crime_id
+    // where fio like 'Летовитез%'
+    val q = ctx.select(
+            field("year"),
+            field("uik"),
+            field("crime_id"),
+            field("crime_title"),
+            field("json_build_object('link_description', link_title, 'link', link_url) as crime_links"))
+        .from(table("UikMemberCrimeView").join("uik_crime_links").on("crime_id = uik_crime_id"))
+        .where(field("uik_member").eq(query.uik_member_id))
+    val q1 = ctx.with("t").`as`(q).select(
+        field("year"),
+        field("uik"),
+        field("crime_id"),
+        field("crime_title"),
+        field("json_agg(crime_links)::TEXT").`as`("links")
+    ).from(table("T")).groupBy(
+        field("year"),
+        field("uik"),
+        field("crime_id"),
+        field("crime_title")
+    ).orderBy(
+        field("year"),
+        field("crime_id")
+    )
+
+    val year2crimes = mutableMapOf<String, MutableList<Crime>>()
+    q1.forEach {
+      val crimes = year2crimes.getOrPut(it["year"].toString()) { mutableListOf() }
+      val jsonNode: JsonNode = jacksonObjectMapper().readTree(it["links"].toString())
+
+      if (jsonNode is ArrayNode) {
+        val links = jsonNode.map { UikCrimeLink(
+            link_description = it["link_description"].asText().trim('"'),
+            link = it["link"].asText().trim('"')
+        )}.toList()
+        crimes.add(Crime(it["crime_title"].toString(), links))
+      } else {
+        println(jsonNode)
+      }
+    }
+    return UikCrimeResponse(year2crimes)
   }
 }

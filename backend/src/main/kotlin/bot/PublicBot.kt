@@ -1,9 +1,12 @@
 // Copyright (C) 2020 Наблюдатели Петербурга
 package org.spbelect.blacklist.bot
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.slf4j.LoggerFactory
 import org.spbelect.blacklist.SearchQuery
+import org.spbelect.blacklist.UikCrimeQuery
+import org.spbelect.blacklist.handleDetailsQuery
 import org.spbelect.blacklist.handleSearchQuery
 import org.telegram.telegrambots.ApiContextInitializer
 import org.telegram.telegrambots.bots.DefaultBotOptions
@@ -48,8 +51,9 @@ class PublicBot : TelegramLongPollingBot(DefaultBotOptions().apply {
     update.callbackQuery?.let {
       AnswerCallbackQuery().apply {
         callbackQueryId = it.id
-        text = "Фича в разработке!"
       }.also { execute(it) }
+      update.handleCallback().forEach { reply -> execute(reply) }
+
     }
     update.message?.let {msg ->
       try {
@@ -69,7 +73,7 @@ fun help(): Response = Response("""
       Я умею искать по номеру комиссии. Просто пошлите мне номер УИК.
       """.trimIndent())
 
-fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.message).apply {
+fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.message?.text ?: "", this.message?.chatId ?: 0).apply {
   onCommand("help") {
     reply(help().text, isMarkdown = false)
   }
@@ -101,6 +105,35 @@ fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.
         BtnData(node["label"].textValue(), (node as ObjectNode).without<ObjectNode>("label").toString())
       }, maxCols = 1, isMarkdown = false)
     }
+  }
+}.handle()
+
+fun (Update).handleCallback(): List<out BotApiMethod<Serializable>> = ChainBuilder(
+    this.callbackQuery.data, this.callbackQuery.message.chatId).apply {
+  parseJson { json ->
+    val personId = json.get("person_id")?.asInt() ?: return@parseJson
+    val year = json.get("year")?.asInt()
+
+    val resp = handleDetailsQuery(UikCrimeQuery(personId)).let {
+      if (year != null) {
+        it.violations.filterKeys { k -> k.toIntOrNull() == year }
+      } else {
+        it.violations
+      }
+    }
+
+    val msgBuilder = StringBuilder()
+    resp.forEach { (year, crimes) ->
+      msgBuilder.appendln("*$year*\n")
+      crimes.forEach { c ->
+        msgBuilder.appendln("_${c.description.escapeMarkdown()}_")
+        msgBuilder.appendln(
+            c.links.map { link -> "[${link.link_description.escapeMarkdown()}](${link.link.escapeMarkdown()})" }.joinToString("\n")
+        )
+        msgBuilder.appendln()
+      }
+    }
+    reply(msg = msgBuilder.toString(), isMarkdown = true)
   }
 }.handle()
 
