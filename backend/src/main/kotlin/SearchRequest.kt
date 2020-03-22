@@ -18,7 +18,8 @@ data class UikMemberStatus(
 
 data class Crime(
     var description: String,
-    var links: List<UikCrimeLink> = mutableListOf()
+    var links: List<UikCrimeLink> = mutableListOf(),
+    var uik: Int = 0
 )
 
 data class SearchQuery(
@@ -53,6 +54,7 @@ typealias SearchRecord = Record6<Int, Int, Int, String, Int, Int>
 fun (SearchRecord).status() = this.value5()
 fun (SearchRecord).year() = this.value1()
 fun (SearchRecord).name() = this.value4()
+fun (SearchRecord).uik() = this.value2()
 
 fun <T> prepareSearchQuery(searchQuery: SearchQuery, code: (SelectConditionStep<SearchRecord>) -> T): T {
   using(dataSource, SQLDialect.POSTGRES).use { ctx ->
@@ -104,7 +106,6 @@ fun <T> prepareSearchQuery(searchQuery: SearchQuery, code: (SelectConditionStep<
 }
 
 fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
-  println("search: $searchQuery")
   if (searchQuery.isBlank) {
     return SearchResponse()
   }
@@ -112,7 +113,6 @@ fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
     val resp = SearchResponse()
     var record = SearchResult()
 
-    println(q)
     q.orderBy(
         field("fio"),
         field("year"),
@@ -174,7 +174,7 @@ fun handleDetailsQuery(query: UikCrimeQuery): UikCrimeResponse {
             link_description = it["link_description"].asText().trim('"'),
             link = it["link"].asText().trim('"')
         )}.toList()
-        crimes.add(Crime(it["crime_title"].toString(), links))
+        crimes.add(Crime(it["crime_title"].toString(), links, it["uik"].toString().toInt()))
       } else {
         println(jsonNode)
       }

@@ -2,6 +2,7 @@
 package org.spbelect.blacklist.bot
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.slf4j.LoggerFactory
 import org.spbelect.blacklist.SearchQuery
@@ -15,8 +16,10 @@ import org.telegram.telegrambots.meta.ApiConstants
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException
 import java.io.Serializable
 import javax.servlet.ServletContextEvent
 import javax.servlet.ServletContextListener
@@ -57,7 +60,20 @@ class PublicBot : TelegramLongPollingBot(DefaultBotOptions().apply {
     }
     update.message?.let {msg ->
       try {
-        update.handle().forEach { reply -> execute(reply) }
+        update.handle().forEach { reply ->
+          try {
+            execute(reply)
+          } catch (ex: TelegramApiRequestException) {
+            ex.printStackTrace()
+            when (reply) {
+              is SendMessage -> {
+                println(reply.text)
+                execute(SendMessage(reply.chatId, "Что-то сломалось при отправке ответа."))
+              }
+              else -> println(reply)
+            }
+          }
+        }
       } catch (ex: Exception) {
         ex.printStackTrace()
       }
@@ -91,19 +107,22 @@ fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.
       reply(msg)
     }
   }
-  onRegexp("""(ТИК)\s*(\d{1,2})""", setOf(RegexOption.IGNORE_CASE)) {
-    //val (uikType, uikNum) = it.destructured
-    reply("Поиск по ТИК пока не сделан\\.")
+  onRegexp("""(ТИ?К?)\s*(\d{1,2})""", setOf(RegexOption.IGNORE_CASE)) {
+    val (uikType, tikNum) = it.destructured
+    handleTikBlacklist(tikNum.toInt()) { msg, jsons ->
+      reply(msg, buttons = jsons.toButtons())
+    }
   }
-  onRegexp("""(ИКМО)\s*(.+)""", setOf(RegexOption.IGNORE_CASE)) {
-    //val (uikType, uikNum) = it.destructured
-    reply("Поиск по ИКМО пока не сделан\\.")
+  onRegexp("""(И?К?МО)\s*(.+)""", setOf(RegexOption.IGNORE_CASE)) {
+    val (_, ikmoName) = it.destructured
+    handleIkmoBlacklist(ikmoName) { msg, jsons ->
+      reply(msg, buttons = jsons.toButtons())
+    }
+
   }
   onRegexp(""".+""", setOf(RegexOption.IGNORE_CASE)) {
     handlePersonBlacklist(it.value) { msg, jsons ->
-      reply(msg, buttons = jsons.map { node ->
-        BtnData(node["label"].textValue(), (node as ObjectNode).without<ObjectNode>("label").toString())
-      }, maxCols = 1, isMarkdown = false)
+      reply(msg, buttons = jsons.toButtons(), maxCols = 1, isMarkdown = true)
     }
   }
 }.handle()
@@ -122,11 +141,11 @@ fun (Update).handleCallback(): List<out BotApiMethod<Serializable>> = ChainBuild
       }
     }
 
-    val msgBuilder = StringBuilder()
+    val msgBuilder = StringBuilder("*${getPersonName(personId).escapeMarkdown()}*").appendln("\n")
     resp.forEach { (year, crimes) ->
       msgBuilder.appendln("*$year*\n")
       crimes.forEach { c ->
-        msgBuilder.appendln("_${c.description.escapeMarkdown()}_")
+        msgBuilder.appendln("*${formatUikLabel(c.uik).escapeMarkdown()}* _${c.description.escapeMarkdown()}_")
         msgBuilder.appendln(
             c.links.map { link -> "[${link.link_description.escapeMarkdown()}](${link.link.escapeMarkdown()})" }.joinToString("\n")
         )
@@ -137,4 +156,10 @@ fun (Update).handleCallback(): List<out BotApiMethod<Serializable>> = ChainBuild
   }
 }.handle()
 
+private fun (ArrayNode).toButtons() =
+  this.map { node ->
+    BtnData(node["label"].textValue(), (node as ObjectNode).without<ObjectNode>("label").toString())
+  }
+
 private val LOGGER = LoggerFactory.getLogger("PublicBot")
+

@@ -59,7 +59,6 @@ open class ChainBuilder(private val messageText: String, private val replyChatId
       setChatId(this@ChainBuilder.replyChatId)
       enableMarkdownV2(isMarkdown)
       text = msg
-      println(buttons)
       if (buttons.isNotEmpty()) {
         replyMarkup = InlineKeyboardMarkup(
             buttons.map { InlineKeyboardButton(it.label).also { btn -> btn.callbackData = it.callbackData } }.chunked(maxCols)
