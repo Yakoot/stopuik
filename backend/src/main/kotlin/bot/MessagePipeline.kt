@@ -61,7 +61,12 @@ open class ChainBuilder(private val messageText: String, private val replyChatId
       text = msg
       if (buttons.isNotEmpty()) {
         replyMarkup = InlineKeyboardMarkup(
-            buttons.map { InlineKeyboardButton(it.label).also { btn -> btn.callbackData = it.callbackData } }.chunked(maxCols)
+            buttons.map {
+              println("label=${it.label} size=${it.label.length} callback=${it.callbackData}")
+              InlineKeyboardButton(it.label).also { btn ->
+                if (it.callbackData.isNotBlank()) btn.callbackData = it.callbackData
+              }
+            }.chunked(maxCols)
         )
       }
     } as BotApiMethod<Serializable>)

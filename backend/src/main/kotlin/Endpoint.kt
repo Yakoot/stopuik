@@ -77,6 +77,9 @@ data class TimelineResponse(
   var elections: List<TimelineResponseItem> = listOf()
 )
 
+data class FullTextResponse(
+    var rows: List<String> = listOf()
+)
 @Api(name = "blacklist",
     version = "v1")
 class Endpoint {

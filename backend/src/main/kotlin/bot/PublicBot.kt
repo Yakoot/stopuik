@@ -5,10 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.slf4j.LoggerFactory
-import org.spbelect.blacklist.SearchQuery
-import org.spbelect.blacklist.UikCrimeQuery
-import org.spbelect.blacklist.handleDetailsQuery
-import org.spbelect.blacklist.handleSearchQuery
+import org.spbelect.blacklist.*
 import org.telegram.telegrambots.ApiContextInitializer
 import org.telegram.telegrambots.bots.DefaultBotOptions
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
@@ -127,34 +124,43 @@ fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.
   }
 }.handle()
 
-fun (Update).handleCallback(): List<out BotApiMethod<Serializable>> = ChainBuilder(
-    this.callbackQuery.data, this.callbackQuery.message.chatId).apply {
-  parseJson { json ->
-    val personId = json.get("person_id")?.asInt() ?: return@parseJson
-    val year = json.get("year")?.asInt()
+fun (Update).handleCallback(): List<out BotApiMethod<Serializable>> =
+    ChainBuilder(this.callbackQuery.data, this.callbackQuery.message.chatId).apply {
+      parseJson { json ->
+        val command = json.get("command")?.asText() ?: "details"
+        when (command) {
+          "full_text" -> {
+            reply(msg = handleFullTextSearchQuery(json.get("query").asText()).rows.joinToString(separator = "\n"), isMarkdown = false)
+          }
+          "details" -> {
+            val personId = json.get("person_id")?.asInt() ?: return@parseJson
+            val year = json.get("year")?.asInt()
 
-    val resp = handleDetailsQuery(UikCrimeQuery(personId)).let {
-      if (year != null) {
-        it.violations.filterKeys { k -> k.toIntOrNull() == year }
-      } else {
-        it.violations
-      }
-    }
+            val resp = handleDetailsQuery(UikCrimeQuery(personId)).let {
+              if (year != null) {
+                it.violations.filterKeys { k -> k.toIntOrNull() == year }
+              } else {
+                it.violations
+              }
+            }
 
-    val msgBuilder = StringBuilder("*${getPersonName(personId).escapeMarkdown()}*").appendln("\n")
-    resp.forEach { (year, crimes) ->
-      msgBuilder.appendln("*$year*\n")
-      crimes.forEach { c ->
-        msgBuilder.appendln("*${formatUikLabel(c.uik).escapeMarkdown()}* _${c.description.escapeMarkdown()}_")
-        msgBuilder.appendln(
-            c.links.map { link -> "[${link.link_description.escapeMarkdown()}](${link.link.escapeMarkdown()})" }.joinToString("\n")
-        )
-        msgBuilder.appendln()
-      }
+            val msgBuilder = StringBuilder("*${getPersonName(personId).escapeMarkdown()}*").appendln("\n")
+            resp.forEach { (year, crimes) ->
+              msgBuilder.appendln("*$year*\n")
+              crimes.forEach { c ->
+                msgBuilder.appendln("*${formatUikLabel(c.uik).escapeMarkdown()}* _${c.description.escapeMarkdown()}_")
+                msgBuilder.appendln(
+                    c.links.map { link -> "[${link.link_description.escapeMarkdown()}](${link.link.escapeMarkdown()})" }.joinToString("\n")
+                )
+                msgBuilder.appendln()
+              }
+            }
+            reply(msg = msgBuilder.toString(), isMarkdown = true)
+          }
+          else -> LOGGER.warn("Unknown command $command")
+        }
     }
-    reply(msg = msgBuilder.toString(), isMarkdown = true)
-  }
-}.handle()
+  }.handle()
 
 private fun (ArrayNode).toButtons() =
   this.map { node ->

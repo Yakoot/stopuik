@@ -182,3 +182,59 @@ fun handleDetailsQuery(query: UikCrimeQuery): UikCrimeResponse {
     return UikCrimeResponse(year2crimes)
   }
 }
+
+fun handleFullTextSearchQuery(query: String): FullTextResponse {
+  using(dataSource, SQLDialect.POSTGRES).use { ctx ->
+    val year2rawHistory = sortedMapOf<Int, MutableList<String>>()
+
+    // First we run structured search over the parsed uik members data
+    val q = ctx.select(
+        field("year", Int::class.java),
+        field("uik", Int::class.java),
+        field("uik_member", Int::class.java),
+        field("fio", String::class.java),
+        field("uik_status", Int::class.java).`as`("status")
+    ).from(table("uik_member").join(table("uik_history")).on("id = uik_member"))
+        .where(field("fio").containsIgnoreCase(query))
+
+    q.map { row ->
+      """${row["fio"]} ${StatusEnum.values()[row["status"].toString().toInt()].label} УИК ${row["uik"]} в ${row["year"]}г."""
+    }.also {
+      if (it.isNotEmpty()) {
+        year2rawHistory[2019] = it.toMutableList()
+      }
+    }
+
+
+    // Then we run search over "raw" uik members data which was imported from
+    // Yakov Sirotkin's github: https://github.com/YakovSirotkin/spbuik
+    ctx.select(
+        field("year", Int::class.java),
+        field("raw_record", String::class.java)
+    ).from(table("raw_history")).where(
+        field("raw_record").containsIgnoreCase(query)
+    ).orderBy(
+        field("year").desc(), field("raw_record")
+    ).forEach { row ->
+        year2rawHistory.getOrPut(row["year"].toString().toInt()) { mutableListOf() }.also {
+          it.add(row["raw_record"]?.toString() ?: "")
+        }
+    }
+
+    val resultRows = mutableListOf<String>()
+    year2rawHistory.toSortedMap(reverseOrder()).entries.forEach { entry ->
+      resultRows.add("\nРезультаты поиска по составам УИК ${entry.key} года")
+      resultRows.add("----------------------------------------------------")
+      resultRows.addAll(entry.value)
+    }
+
+
+    return FullTextResponse(
+        when {
+          resultRows.isEmpty() -> listOf("Нет результатов")
+          resultRows.size > 100 -> listOf("Найдено ${resultRows.size} результатов по всем годам. Уточните запрос, пожалуйста.")
+          else -> resultRows
+        }
+    )
+  }
+}
