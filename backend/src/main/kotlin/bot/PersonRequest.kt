@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL.*
 import org.spbelect.blacklist.SearchQuery
-import org.spbelect.blacklist.dataSource
+import org.spbelect.blacklist.shared.dataSource
 import org.spbelect.blacklist.handleSearchQuery
 
 /**
@@ -68,7 +68,7 @@ fun getPersonName(personId: Int): String {
 }
 
 private fun createFullTextSearch(name: String): JsonNode {
-  val truncName = if (name.length > 15) name.substring(0, 16) else name
+  val truncName = if (name.length >= 15) name.substring(0, 15) else name
   return OBJECT_MAPPER.createObjectNode()
       .put("command", "full_text")
       .put("label", "Искать $truncName по всем членам УИК")

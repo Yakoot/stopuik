@@ -121,7 +121,7 @@ export function formatUikLabel(uik: AllUiksResponseItem | undefined): string {
   if (uik.id > 0) {
     return `УИК ${uik.name}`;
   }
-  if (uik.id < -100) {
+  if (uik.id < -100 && !uik.name.startsWith('ОИК')) {
     return `ИКМО ${uik.name}`;
   }
   return uik.name;
