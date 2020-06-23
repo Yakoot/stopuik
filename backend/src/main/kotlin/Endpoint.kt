@@ -1,15 +1,14 @@
 // Copyright (C) 2020 Наблюдатели Петербурга
 package org.spbelect.blacklist
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ArrayNode
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.api.server.spi.auth.common.User
 import com.google.api.server.spi.config.Api
 import com.google.api.server.spi.config.ApiMethod
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL.*
 import org.slf4j.LoggerFactory
+import org.spbelect.blacklist.shared.dataSource
+import org.spbelect.blacklist.shared.executeQuery
 
 data class FilterData(
     var uik: MutableList<String> = mutableListOf(),

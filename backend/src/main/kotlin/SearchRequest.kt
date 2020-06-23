@@ -8,6 +8,7 @@ import org.jooq.Record6
 import org.jooq.SQLDialect
 import org.jooq.SelectConditionStep
 import org.jooq.impl.DSL.*
+import org.spbelect.blacklist.shared.dataSource
 
 data class UikMemberStatus(
     var uik: Int,
@@ -75,6 +76,7 @@ fun <T> prepareSearchQuery(searchQuery: SearchQuery, code: (SelectConditionStep<
     }
     searchQuery.year.toIntOrNull()?.let { q = q.and(field("year").eq(it)) }
 
+    println(searchQuery)
     val uik = searchQuery.uik
     if (uik != 0) {
       q = q.and(field("uik").eq(uik))
@@ -106,13 +108,13 @@ fun <T> prepareSearchQuery(searchQuery: SearchQuery, code: (SelectConditionStep<
 }
 
 fun handleSearchQuery(searchQuery: SearchQuery): SearchResponse {
+  println(searchQuery)
   if (searchQuery.isBlank) {
     return SearchResponse()
   }
   return prepareSearchQuery(searchQuery) {q ->
     val resp = SearchResponse()
     var record = SearchResult()
-
     q.orderBy(
         field("fio"),
         field("year"),

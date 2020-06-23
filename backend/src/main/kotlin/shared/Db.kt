@@ -1,7 +1,10 @@
 // Copyright (C) 2020 Наблюдатели Петербурга
-package org.spbelect.blacklist
+package org.spbelect.blacklist.shared
 
 import com.zaxxer.hikari.HikariDataSource
+import org.jooq.DSLContext
+import org.jooq.SQLDialect
+import org.jooq.impl.DSL.using
 import java.sql.ResultSet
 
 val dataSource = HikariDataSource().apply {
@@ -27,3 +30,6 @@ fun <T> executeQuery(query: String, code: (ResultSet) -> T): T {
     }
   }
 }
+
+fun <T> db(code: DSLContext.() -> T) =
+  using(dataSource, SQLDialect.POSTGRES).use(code)

@@ -7,6 +7,7 @@ import com.google.api.server.spi.config.Authenticator
 import com.google.common.io.BaseEncoding
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL.*
+import org.spbelect.blacklist.shared.dataSource
 import java.util.*
 import javax.servlet.http.Cookie
 import javax.servlet.http.HttpServlet
@@ -51,7 +52,7 @@ class DoSignIn : HttpServlet() {
           field("name"),
           field("permission"))
           .from(table("RegistryUser"))
-          .where(field("email").eq(email))
+          .where(field("email").equalIgnoreCase(email))
           .fetchOne()?.let {row ->
             req.getSession(true).let {session ->
               session.setAttribute("userId", row["uid"].toString())

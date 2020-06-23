@@ -8,6 +8,7 @@ import org.jooq.SQLDialect
 import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL.*
 import org.slf4j.LoggerFactory
+import org.spbelect.blacklist.shared.dataSource
 
 data class CreateCrimeRequestLinkItem(
     var title: String = "",

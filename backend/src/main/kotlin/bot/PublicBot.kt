@@ -15,6 +15,7 @@ import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
+import org.telegram.telegrambots.meta.bots.AbsSender
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException
 import java.io.Serializable
@@ -43,50 +44,63 @@ class ServletContextHook : ServletContextListener {
 
 class PublicBot : TelegramLongPollingBot(DefaultBotOptions().apply {
   baseUrl = System.getenv("TG_BASE_URL") ?: ApiConstants.BASE_URL
-}) {
+}), MessageSender {
   init {
-    println("Created PublicBot")
+    println("Created PublicBot!!")
+    Exception().printStackTrace()
   }
   override fun onUpdateReceived(update: Update) {
-    update.callbackQuery?.let {
-      AnswerCallbackQuery().apply {
-        callbackQueryId = it.id
-      }.also { execute(it) }
-      update.handleCallback().forEach { reply -> execute(reply) }
-
-    }
-    update.message?.let {msg ->
-      try {
-        update.handle().forEach { reply ->
-          try {
-            execute(reply)
-          } catch (ex: TelegramApiRequestException) {
-            ex.printStackTrace()
-            when (reply) {
-              is SendMessage -> {
-                println(reply.text)
-                execute(SendMessage(reply.chatId, "Что-то сломалось при отправке ответа."))
-              }
-              else -> println(reply)
+    try {
+      update.handle(this).forEach { reply ->
+        try {
+          execute(reply)
+        } catch (ex: TelegramApiRequestException) {
+          ex.printStackTrace()
+          when (reply) {
+            is SendMessage -> {
+              println(reply.text)
+              execute(SendMessage(reply.chatId, "Что-то сломалось при отправке ответа."))
             }
+            else -> println(reply)
           }
         }
-      } catch (ex: Exception) {
-        ex.printStackTrace()
       }
+    } catch (ex: Exception) {
+      ex.printStackTrace()
     }
   }
 
   override fun getBotUsername() = System.getenv("TG_BOT_USERNAME") ?: "spbelect_public_bot"
   override fun getBotToken(): String = System.getenv("TG_BOT_TOKEN") ?: ""
+  override fun <T : BotApiMethod<Serializable>> send(msg: T) {
+    execute(msg)
+  }
 }
 
 fun help(): Response = Response("""
-      Я умею искать по совпадениям в ФИО. Просто пошлите мне любую подстроку, например слово 'лето', убрав кавычки.
-      Я умею искать по номеру комиссии. Просто пошлите мне номер УИК.
+  Я умею искать нарушения, зарегистрированные в Реестре Нарушений Наблюдателей Петербурга.
+  
+  Умею искать нарушения по части ФИО нарушителя. Просто пошлите мне искомую подстроку. 
+  Как насчет "лето" или "ангел" (только уберите кавычки)? Регистр букв неважен.
+  
+  Если нарушитель с такой подстрокой в ФИО есть, вам расскажут о его прегрешениях. И в любом случае предложат  
+  посмотреть, были ли вообще члены УИК с искомой подстрокой, и если были то когда. 
+
+  Умею искать нарушения по номеру участковой комиссии. Просто пошлите мне номер УИК. Как насчет "42" (убрав кавычки)?
+  
+  Нарушения бывают и в ТИКах! По ним я тоже умею искать. Пошлите мне запрос вида "тик 18" (убрав кавычки)
+  и получите в ответ все известные нарушения в ТИК 18 и подчиненных ей комиссиях за все годы. 
+  Такие запросы можно сокращать до "т18" (буквы ИК, пробел и регистр не важны)
+
+  Ой, а ещё есть ИКМО! Пошлите запрос вида "икмо георгиевское" и получите в ответ все зарегистрированные нарушения икмища 
+  и подчиненных ей комиссий. Такие запросы можно сокращать до "мо геор". Буквы ИК, регистр не важны, 
+  в названии округа достаточно написать только префикс, при наличии нескольких МО с таким префиксом я попрошу 
+  уточнить запрос.
+      
       """.trimIndent())
 
-fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.message?.text ?: "", this.message?.chatId ?: 0).apply {
+private fun (Update).handle(bot: PublicBot): List<out BotApiMethod<Serializable>> =
+    ChainBuilder(this, bot).apply {
   onCommand("help") {
     reply(help().text, isMarkdown = false)
   }
@@ -110,7 +124,7 @@ fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.
       reply(msg, buttons = jsons.toButtons())
     }
   }
-  onRegexp("""(И?К?МО)\s*(.+)""", setOf(RegexOption.IGNORE_CASE)) {
+  onRegexp("""(И?К?МО)\s+(.+)""", setOf(RegexOption.IGNORE_CASE)) {
     val (_, ikmoName) = it.destructured
     handleIkmoBlacklist(ikmoName) { msg, jsons ->
       reply(msg, buttons = jsons.toButtons())
@@ -122,45 +136,41 @@ fun (Update).handle(): List<out BotApiMethod<Serializable>> = ChainBuilder(this.
       reply(msg, buttons = jsons.toButtons(), maxCols = 1, isMarkdown = true)
     }
   }
-}.handle()
+  onCallback {json ->
+    val command = json.get("command")?.asText() ?: "details"
+    when (command) {
+      "full_text" -> {
+        reply(msg = handleFullTextSearchQuery(json.get("query").asText()).rows.joinToString(separator = "\n"), isMarkdown = false)
+      }
+      "details" -> {
+        val personId = json.get("person_id")?.asInt() ?: return@onCallback
+        val year = json.get("year")?.asInt()
 
-fun (Update).handleCallback(): List<out BotApiMethod<Serializable>> =
-    ChainBuilder(this.callbackQuery.data, this.callbackQuery.message.chatId).apply {
-      parseJson { json ->
-        val command = json.get("command")?.asText() ?: "details"
-        when (command) {
-          "full_text" -> {
-            reply(msg = handleFullTextSearchQuery(json.get("query").asText()).rows.joinToString(separator = "\n"), isMarkdown = false)
+        val resp = handleDetailsQuery(UikCrimeQuery(personId)).let {
+          if (year != null) {
+            it.violations.filterKeys { k -> k.toIntOrNull() == year }
+          } else {
+            it.violations
           }
-          "details" -> {
-            val personId = json.get("person_id")?.asInt() ?: return@parseJson
-            val year = json.get("year")?.asInt()
-
-            val resp = handleDetailsQuery(UikCrimeQuery(personId)).let {
-              if (year != null) {
-                it.violations.filterKeys { k -> k.toIntOrNull() == year }
-              } else {
-                it.violations
-              }
-            }
-
-            val msgBuilder = StringBuilder("*${getPersonName(personId).escapeMarkdown()}*").appendln("\n")
-            resp.forEach { (year, crimes) ->
-              msgBuilder.appendln("*$year*\n")
-              crimes.forEach { c ->
-                msgBuilder.appendln("*${formatUikLabel(c.uik).escapeMarkdown()}* _${c.description.escapeMarkdown()}_")
-                msgBuilder.appendln(
-                    c.links.map { link -> "[${link.link_description.escapeMarkdown()}](${link.link.escapeMarkdown()})" }.joinToString("\n")
-                )
-                msgBuilder.appendln()
-              }
-            }
-            reply(msg = msgBuilder.toString(), isMarkdown = true)
-          }
-          else -> LOGGER.warn("Unknown command $command")
         }
+
+        val msgBuilder = StringBuilder("*${getPersonName(personId).escapeMarkdown()}*").appendln("\n")
+        resp.forEach { (year, crimes) ->
+          msgBuilder.appendln("*$year*\n")
+          crimes.forEach { c ->
+            msgBuilder.appendln("*${formatUikLabel(c.uik).escapeMarkdown()}* _${c.description.escapeMarkdown()}_")
+            msgBuilder.appendln(
+                c.links.map { link -> "[${link.link_description.escapeMarkdown()}](${link.link.escapeMarkdown()})" }.joinToString("\n")
+            )
+            msgBuilder.appendln()
+          }
+        }
+        reply(msg = msgBuilder.toString(), isMarkdown = true)
+      }
+      else -> LOGGER.warn("Unknown command $command")
     }
-  }.handle()
+  }
+}.handle()
 
 private fun (ArrayNode).toButtons() =
   this.map { node ->
