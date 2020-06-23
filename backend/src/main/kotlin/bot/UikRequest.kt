@@ -6,6 +6,7 @@ import org.jooq.SQLDialect
 import org.jooq.SelectConditionStep
 import org.jooq.impl.DSL.*
 import org.spbelect.blacklist.*
+import org.spbelect.blacklist.shared.dataSource
 
 private val ikmoIdToName: Map<Int, String> by lazy {
   using(dataSource, SQLDialect.POSTGRES).use { ctx ->
@@ -53,6 +54,14 @@ fun buildUikBlacklistResponse(uikId: Int, year2persons: Map<Int, List<SearchResu
 }
 
 fun handleUikBlacklist(uikId: Int, reply: (text: String) -> Unit) {
+  using(dataSource, SQLDialect.POSTGRES).use { ctx ->
+    ctx.select(field("id"), field("gas_url")).from("uik").where(field("id").eq(uikId))
+        .firstOrNull()?.let { row ->
+          if (row["gas_url"] != null) {
+            reply("УИК №$uikId.\n".escapeMarkdown() + "[Официальные сведения](${row["gas_url"]})")
+          }
+        }
+    }
   reply(buildUikBlacklistResponse(uikId, searchUik(uikId)))
 }
 
@@ -74,7 +83,7 @@ fun handleIkmoBlacklist(ikmoName: String, reply: (String, ArrayNode) -> Unit) {
         .toList()
     when (ikmos.size) {
       0 -> {
-        reply("Нет результатов", OBJECT_MAPPER.createArrayNode())
+        reply("Поиск по ИКМО $ikmoName результатов не дал", OBJECT_MAPPER.createArrayNode())
       }
       1-> {
         val q = ctx.select(
