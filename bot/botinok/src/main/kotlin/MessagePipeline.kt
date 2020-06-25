@@ -43,6 +43,8 @@ interface MessageSender {
 open class ChainBuilder(internal val update: Update, private val sendMessage: MessageSender) {
   val messageText = (update.message?.text ?: "").trim()
   val fromUser = update.message?.from ?: update.callbackQuery?.from
+  val messageId = update.callbackQuery?.message?.messageId ?: update.message?.messageId
+
   val userId = (this.fromUser?.id ?: -1).toLong()
 
   private var replyChatId = update.message?.chatId ?: -1

@@ -72,23 +72,30 @@ private class ProtectedBot : TelegramLongPollingBot(DefaultBotOptions().apply {
           1 -> handleUikNumberStart()
           2 -> handleDataInputStart()
           3 -> handleDataInputDateChoice(json)
-          4 -> handleDocumentUploadStart()
           5 -> handleDocumentUploadDateChoice(json)
           6 -> handleDocumentUploadFinish()
+          7 -> handleDocTypeChoice(json)
+          8 -> handleSafeUsage(json)
           10 -> handleNumericKeyboard(json)
           else -> reply("Неизвестная команда")
         }
       }
-      onDocument(whenState = 4) {
+      onDocument(whenState = WaitingState.WAITING_PHOTOS.ordinal) {
         handleDocumentUploadDone(it)
       }
       onCommand("start") {handleStart()}
       onRegexp("\\s*(\\d{1,4})", whenState = 1) { handleUikNumberEnter(this.messageText.toIntOrNull()) }
-      onRegexp("\\s*\\d+", whenState = 2) {
-        handleHomeVotingDataInput(this.messageText.toIntOrNull())
+//      onRegexp("\\s*\\d+", whenState = 2) {
+//        handleHomeVotingDataInput(this.messageText.toIntOrNull())
+//      }
+      onRegexp("\\s*\\d+", whenState = WaitingState.WAITING_BOX_NUM.ordinal) {
+        handleBoxNum(this.messageText.toIntOrNull())
       }
-      onRegexp("\\s*\\d+", whenState = 3) {
-        handleUikVotingDataInput(this.messageText.toIntOrNull())
+      onRegexp("\\s*\\d+", whenState = WaitingState.WAITING_SAFE_NUM.ordinal) {
+        handleSafeNum(this.messageText.toIntOrNull())
+      }
+      onRegexp("\\s*\\d+", whenState = WaitingState.WAITING_VOTERS_CNT.ordinal) {
+        handleVotersCnt(this.messageText.toIntOrNull())
       }
       onRegexp(".*") {handleInvitation() || handleStart()}
     }
@@ -142,9 +149,6 @@ private fun ChainBuilder.handleObserver(observer: Observer) {
         }),
         BtnData("Сообщить данные о досрочке", jsonCallback {
           put("c", 2)
-        }),
-        BtnData("Прислать фотографии документов", jsonCallback {
-          put("c", 4)
         })
     ))
   }
@@ -217,7 +221,6 @@ private fun ChainBuilder.handleUikNumberEnter(value: Int?) {
 
 private fun ChainBuilder.handleDataInputStart() {
   db {
-    reply("Подсказка: данные можно вводить произвольное количество раз. Записывается последнее введённое значение.", isMarkdown = false)
     reply("За какое число сведения?", isMarkdown = false, maxCols = 2, buttons = buildVotingDateButtons(3))
   }
 }
@@ -233,64 +236,176 @@ private fun ChainBuilder.handleDataInputDateChoice(json: ObjectNode) {
       dialogState(this@handleDataInputDateChoice.userId, null)
       handleStart()
     } else {
-      dialogState(this@handleDataInputDateChoice.userId, 2, json["d"].asText())
-      reply("УИК №${observer.uik}. Дата: ${json["d"].asText()}?", isMarkdown = false)
-      reply("На дому:", isMarkdown = false, maxCols = 5,
-          buttons = buildKeypadButtons("На дому:"))
+      val date = json["d"].asText()
+      dialogState(this@handleDataInputDateChoice.userId, 2, date)
+      reply("УИК №${observer.uik}. Дата: ${date}\nЭто голосование...",
+          editMessageId = this@handleDataInputDateChoice.messageId, isMarkdown = false,
+          buttons = listOf(
+            BtnData("В помещении УИК", jsonCallback {
+              put("c", 7)
+              put("d", date)
+              put("t", VotingType.INSIDE.ordinal)
+            }),
+            BtnData("ВНЕ помещения", jsonCallback {
+              put("c", 7)
+              put("d", date)
+              put("t", VotingType.OUTSIDE.ordinal)
+            })
+          )
+      )
     }
   }
 }
 
-private fun ChainBuilder.handleHomeVotingDataInput(votersCount: Int?) {
-  handleDataInput("home_voters", votersCount) { db, observer, state ->
-    db.dialogState(observer.tgId, 3, state.data)
-    reply("УИК №${observer.uik}. Дата: ${state.data}?", isMarkdown = false)
-    reply("На участке:", isMarkdown = false, maxCols = 5,
-        buttons = buildKeypadButtons("На участке:"))
+enum class VotingType {
+  INSIDE, OUTSIDE;
+}
+fun VotingType.displayText() = when (this) {
+  VotingType.INSIDE -> "В помещении"
+  VotingType.OUTSIDE -> "ВНЕ помещения"
+}
+
+private fun ChainBuilder.handleDocTypeChoice(json: ObjectNode) {
+  db {
+    withObserver { observer ->
+      val date = json["d"].asText()
+      val type = VotingType.values()[json["t"].asInt()]
+      reply("УИК №${observer.uik}. Дата: $date. ${type.displayText()}\nУ вас используются сейф-пакеты?",
+          editMessageId = this@handleDocTypeChoice.messageId, isMarkdown = false, buttons = listOf(
+        BtnData("Да, перекладываем бюллетени из ящика в сейф-пакет", jsonCallback {
+          setAll<ObjectNode>(json)
+          put("c", 8)
+          put("y", true)
+        }),
+        BtnData("Нет сейф-пакетов, все бюллетени остаются в ящике", jsonCallback {
+          setAll<ObjectNode>(json)
+          put("c", 8)
+          put("y", false)
+        })
+      ))
+    }
   }
 }
 
-private fun ChainBuilder.handleUikVotingDataInput(votersCount: Int?) {
-  handleDataInput("uik_voters", votersCount) { db, observer, _ ->
-    db.dialogState(observer.tgId, null)
-    reply("Спасибо, записано", isMarkdown = false)
-    handleStart()
+private fun ChainBuilder.handleSafeUsage(json: ObjectNode) {
+  db {
+    withObserver { observer ->
+      if (json["y"].asBoolean()) {
+        reply("Окей, вы перекладываете бюллетени из ящика в сейф-пакет.", isMarkdown = false)
+      } else {
+        // TODO нет сейф-пакетов
+      }
+      val date = json["d"].asText()
+      val type = VotingType.values()[json["t"].asInt()]
+      dialogState(observer.tgId, WaitingState.WAITING_BOX_NUM.ordinal, json.toString())
+      reply("УИК №${observer.uik}. Дата: $date. ${type.displayText()}", isMarkdown = false)
+      reply("Номер ящика:", isMarkdown = false, maxCols = 5,
+          buttons = buildKeypadButtons("Номер ящика:"))
+    }
   }
 }
 
-private fun ChainBuilder.handleDataInput(columnName: String, votersCount: Int?, closure: (DSLContext, Observer, DialogState) -> Unit) {
-  val observer = getObserver(this.userId)
-  if (observer == null) {
-    handleUnknownUser()
-  } else {
-    this.fromUser?.getDialogState()?.let {
-      db {
-        insertInto(table("VotersCount")).columns(
+private fun ChainBuilder.handleBoxNum(boxNum: Int?) {
+  db {
+    withObserver { observer ->
+      this@handleBoxNum.fromUser?.getDialogState()?.let {state ->
+        val json = jacksonObjectMapper().readTree(state.data) as ObjectNode
+        json.put("b", boxNum)
+        val date = json["d"].asText()
+        val type = VotingType.values()[json["t"].asInt()]
+        dialogState(observer.tgId, WaitingState.WAITING_SAFE_NUM.ordinal, json.toString())
+        reply("УИК №${observer.uik}. Дата: $date. ${type.displayText()}. Ящик №$boxNum.\nВы используете сейф-пакеты",
+            isMarkdown = false)
+        reply("Номер сейф-пакета:",
+            isMarkdown = false, maxCols = 5, buttons = buildKeypadButtons("Номер сейф-пакета:"))
+      }
+    }
+  }
+}
+
+private fun ChainBuilder.handleSafeNum(safeNum: Int?) {
+  db {
+    withObserver { observer ->
+      this@handleSafeNum.fromUser?.getDialogState()?.let {state ->
+        val json = jacksonObjectMapper().readTree(state.data) as ObjectNode
+        json.put("s", safeNum)
+        val date = json["d"].asText()
+        val type = VotingType.values()[json["t"].asInt()]
+        val boxNum = json["b"].asText()
+
+        dialogState(observer.tgId, WaitingState.WAITING_VOTERS_CNT.ordinal, json.toString())
+        reply("УИК №${observer.uik}. Дата: $date. ${type.displayText()}. Ящик №$boxNum. Сейф-пакет №$safeNum",
+            isMarkdown = false)
+        reply("Проголосовало:",
+            isMarkdown = false, maxCols = 5, buttons = buildKeypadButtons("Проголосовало:"))
+      }
+    }
+  }
+}
+
+//reply("УИК №${observer.uik}. Дата: $date.", isMarkdown = false, maxCols = 5,
+//buttons = buildKeypadButtons("${type.displayText()}: "))
+//     dialogState(observer.tgId, WaitingState.WAITING_VOTERS_CNT.ordinal, json.asText())
+//
+//private fun ChainBuilder.handleHomeVotingDataInput(votersCount: Int?) {
+//  handleDataInput("home_voters", votersCount) { db, observer, state ->
+//    db.dialogState(observer.tgId, 3, state.data)
+//    reply("УИК №${observer.uik}. Дата: ${state.data}?", isMarkdown = false)
+//    reply("На участке:", isMarkdown = false, maxCols = 5,
+//        buttons = buildKeypadButtons("На участке:"))
+//  }
+//}
+
+private fun ChainBuilder.handleVotersCnt(votersCount: Int?) {
+  db {
+    withObserver { observer ->
+      this@handleVotersCnt.fromUser?.getDialogState()?.let { state ->
+        val json = jacksonObjectMapper().readTree(state.data) as ObjectNode
+        val date = json["d"].asText()
+        val type = json["t"].asInt()
+        val boxNum = json["b"].asInt()
+        val safeNum = json["s"].asInt()
+        val q = insertInto(table("VotersCount")).columns(
             field("observer_id", Long::class.java),
             field("uik", Int::class.java),
-            field("election_date", Date::class.java)
-        ).values(observer.tgId, observer.uik, Date.valueOf(it.data)).onConflictDoNothing().execute()
-        update(table("VotersCount"))
-            .set(field(columnName, Int::class.java), votersCount)
+            field("election_date", Date::class.java),
+            field("safe_num", Int::class.java)
+        ).values(
+            observer.tgId, observer.uik, Date.valueOf(date), safeNum
+        ).onConflictDoNothing().execute()
+
+        val votersCountId = select(field("id", Int::class.java)).from(table("VotersCount"))
             .where(
                 field("observer_id", Long::class.java).eq(observer.tgId)
             ).and(
-                field("election_date", Date::class.java).eq(Date.valueOf(it.data))
-            ).and(
                 field("uik", Int::class.java).eq(observer.uik)
+            ).and(
+                field("election_date", Date::class.java).eq(Date.valueOf(date))
+            ).and(
+                field("safe_num", Int::class.java).eq(safeNum)
+            ).firstOrNull()?.component1() ?: return@withObserver
+
+        update(table("VotersCount"))
+            .set(field("voters_cnt", Int::class.java), votersCount)
+            .set(field("box_num", Int::class.java), boxNum)
+            .set(field("voting_type", Int::class.java), type)
+            .where(
+                field("id", Int::class.java).eq(votersCountId)
             )
             .execute()
-        closure(this, observer, it)
-      }
-      GlobalScope.launch(AIRTABLE_COROUTINE_DISPATCHER) {
-        updateAirtable(observer, it.data ?: "")
+        reply("Записали. Фотографии актов есть?", isMarkdown = false, buttons = listOf(
+            BtnData("Да, есть", jsonCallback {
+              put("c", 5)
+              put("id", votersCountId)
+              put("d", date)
+            }),
+            BtnData("Нет фотографий", jsonCallback {
+              put("c", 0)
+            })
+        ))
       }
     }
   }
-}
-
-private fun ChainBuilder.handleDocumentUploadStart() {
-  reply("За какое число фотографии?", isMarkdown = false, maxCols = 2, buttons = buildVotingDateButtons(5))
 }
 
 private fun ChainBuilder.handleDocumentUploadDateChoice(json: ObjectNode) {
@@ -299,51 +414,33 @@ private fun ChainBuilder.handleDocumentUploadDateChoice(json: ObjectNode) {
       dialogState(this@handleDocumentUploadDateChoice.userId, null)
       handleStart()
     } else {
-      dialogState(this@handleDocumentUploadDateChoice.userId, 4, json["d"].asText())
-      reply("Засылайте фотографии. Можно несколько. Текст будет проигнорирован.", isMarkdown = false)
+      dialogState(this@handleDocumentUploadDateChoice.userId, WaitingState.WAITING_PHOTOS.ordinal, json.toString())
+      reply("Засылайте фотографии. Можно несколько. Альбом, по одной, как документы -- неважно. Текст будет проигнорирован.", isMarkdown = false)
     }
   }
 }
 
 private fun ChainBuilder.handleDocumentUploadDone(docs: DocumentList) {
-  val observer = getObserver(this.userId)
-  if (observer == null) {
-    handleUnknownUser()
-  } else {
-    this.update.message?.from?.getDialogState()?.let {
+  withObserver { observer ->
+    this.update.message?.from?.getDialogState()?.let {state ->
+      val json = jacksonObjectMapper().readTree(state.data) as ObjectNode
+      val recordId = json["id"].asInt()
       db {
-        insertInto(table("VotersCount")).columns(
-            field("observer_id", Long::class.java),
-            field("uik", Int::class.java),
-            field("election_date", Date::class.java)
-        ).values(
-            observer.tgId, observer.uik, Date.valueOf(it.data)
-        ).onConflictDoNothing().execute()
-
         docs.docs.last().let { d ->
           insertInto(table("VotersCountDocument")).columns(
-              field("observer_id", Long::class.java),
-              field("uik", Int::class.java),
-              field("election_date", Date::class.java),
+              field("voters_count_id", Int::class.java),
               field("doc_id", String::class.java)
           ).values(
-              observer.tgId, observer.uik, Date.valueOf(it.data), d.docId
+              recordId, d.docId
           ).execute()
         }
       }
 
       GlobalScope.launch(AIRTABLE_COROUTINE_DISPATCHER) {
-        updateAirtable(observer, it.data ?: "")
+        updateAirtable(recordId, observer)
       }
-      reply("Спасибо, записали. Ещё фотографии есть?", isMarkdown = false, buttons = listOf(
-          BtnData("Да, есть ещё", jsonCallback {
-            put("c", 5)
-            put("d", it.data)
-          }),
-          BtnData("Нет, пока всё", jsonCallback {
-            put("c", 6)
-          })
-      ))
+      reply("Спасибо, записали.", isMarkdown = false)
+      handleStart()
     }
   }
 }
@@ -368,13 +465,13 @@ private fun ChainBuilder.handleNumericKeyboard(json: ObjectNode) {
   val currentValue = this.update.callbackQuery.message.text.substring(prefix.length).toIntOrNull()?.toString() ?: ""
   when {
     key in 0..9 -> {
-      reply("$prefix$currentValue$key", editMessageId = this.update.callbackQuery.message.messageId,
+      reply("$prefix$currentValue$key", editMessageId = this.messageId,
           isMarkdown = false, maxCols = 5, buttons = buildKeypadButtons(prefix))
     }
     key == 10 -> {
       val newValue = if (currentValue.isEmpty()) "" else currentValue.substring(0, currentValue.lastIndex)
       reply("$prefix$newValue",
-          editMessageId = this.update.callbackQuery.message.messageId,
+          editMessageId = this.messageId,
           isMarkdown = false, maxCols = 5, buttons = buildKeypadButtons(prefix)
       )
     }
@@ -391,9 +488,12 @@ private fun ChainBuilder.handleNumericInput(value: Int) {
   println("Numeric input: value=$value dialog state=${this.fromUser?.getDialogState()?.state}")
   when (this.fromUser?.getDialogState()?.state) {
     null -> {}
-    1 -> handleUikNumberEnter(value)
-    2 -> handleHomeVotingDataInput(value)
-    3 -> handleUikVotingDataInput(value)
+    WaitingState.WAITING_UIK_NUM.ordinal -> handleUikNumberEnter(value)
+    WaitingState.WAITING_BOX_NUM.ordinal -> handleBoxNum(value)
+    WaitingState.WAITING_SAFE_NUM.ordinal -> handleSafeNum(value)
+    WaitingState.WAITING_VOTERS_CNT.ordinal -> handleVotersCnt(value)
+//    2 -> handleHomeVotingDataInput(value)
+//    3 -> handleUikVotingDataInput(value)
     else -> {
 
     }
@@ -524,44 +624,44 @@ private fun ChainBuilder.buildKeypadButtons(prefix: String) = listOf(
     })
 )
 
-private fun updateAirtable(observer: Observer, date: String) {
+private fun updateAirtable(postgresRecordId: Int, observer: Observer) {
   val row = db {
     select(
-        field("home_voters", Int::class.java),
-        field("uik_voters", Int::class.java),
+        field("observer_id", Long::class.java),
+        field("uik", Int::class.java),
+        field("election_date", Date::class.java),
+        field("safe_num", Int::class.java),
+        field("voters_cnt", Int::class.java),
+        field("box_num", Int::class.java),
+        field("voting_type", Int::class.java),
         field("airtable_record_id", String::class.java)
     ).from("VotersCount").where(
-        field("observer_id", Long::class.java).eq(observer.tgId)
-    ).and(
-        field("uik", Int::class.java).eq(observer.uik)
-    ).and(
-        field("election_date", Date::class.java).eq(Date.valueOf(date))
+        field("id", Int::class.java).eq(postgresRecordId)
     ).firstOrNull()
   } ?: return
 
   val jsonFields = jacksonObjectMapper().createObjectNode().apply {
-    put("Наблюдатель", "${observer.firstName ?: ""} ${observer.lastName ?: ""}")
-    put("Номер УИК", observer.uik)
-    put("Дата", date)
-    put("На дому", row.component1() ?: 0)
-    put("На участке", row.component2() ?: 0)
+    put("Name", "${observer.firstName ?: ""} ${observer.lastName ?: ""}")
+    put("telegram_user_id", observer.tgId)
+    put("Номер УИК", row.component2())
+    put("Дата", row.component3().toString())
+    put("Акт", VotingType.values()[row.component7()].displayText())
+    put("Номер ящика", row.component6())
+    put("Номер сейф-пакета", row.component4())
+    put("Число участников", row.component5())
   }
   db {
     select(
         field("doc_id", String::class.java)
     ).from("VotersCountDocument").where(
-        field("observer_id", Long::class.java).eq(observer.tgId)
-    ).and(
-        field("uik", Int::class.java).eq(observer.uik)
-    ).and(
-        field("election_date", Date::class.java).eq(Date.valueOf(date))
+        field("voters_count_id", Int::class.java).eq(postgresRecordId)
     ).map { row ->
       jacksonObjectMapper().createObjectNode().apply {
         put("url", getDocumentUrl(row.component1()))
       }
     }.toList().also {
       if (it.isNotEmpty()) {
-        jsonFields.put("Attachments", jacksonObjectMapper().createArrayNode().addAll(it))
+        jsonFields.put("Фотография", jacksonObjectMapper().createArrayNode().addAll(it))
       }
     }
   }
@@ -576,9 +676,9 @@ private fun updateAirtable(observer: Observer, date: String) {
     $jsonBody
     
   """.trimIndent())
-  if (row.component3() == null) {
+  if (row.component8() == null) {
     val req = HttpRequest.newBuilder()
-        .uri(URI("https://api.airtable.com/v0/appx00G1cfwLC98Hs/Table%201"))
+        .uri(URI(AIRTABLE_WITH_SAFES))
         .header("Authorization", "Bearer keyIuS44JJWT8ww9C")
         .header("Content-Type", "application/json")
         .POST(HttpRequest.BodyPublishers.ofString(jsonBody.toString()))
@@ -590,18 +690,14 @@ private fun updateAirtable(observer: Observer, date: String) {
         update(table("VotersCount"))
             .set(field("airtable_record_id", String::class.java), jsonResponse["id"].asText())
             .where(
-                field("observer_id", Long::class.java).eq(observer.tgId)
-            ).and(
-                field("election_date", Date::class.java).eq(Date.valueOf(date))
-            ).and(
-                field("uik", Int::class.java).eq(observer.uik)
+                field("id", Int::class.java).eq(postgresRecordId)
             )
             .execute()
       }
     }
   } else {
     val req = HttpRequest.newBuilder()
-        .uri(URI("https://api.airtable.com/v0/appx00G1cfwLC98Hs/Table%201/${row.component3()}"))
+        .uri(URI("$AIRTABLE_WITH_SAFES/${row.component8()}"))
         .header("Authorization", "Bearer keyIuS44JJWT8ww9C")
         .header("Content-Type", "application/json")
         .PUT(HttpRequest.BodyPublishers.ofString(jsonBody.toString()))
@@ -624,5 +720,17 @@ private fun getDocumentUrl(docId: String): String {
   return "https://api.telegram.org/file/bot$token/$path"
 }
 private val AIRTABLE_COROUTINE_DISPATCHER = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-
+private val AIRTABLE_WITH_SAFES = "https://api.airtable.com/v0/appx00G1cfwLC98Hs/%D0%94%D0%BE%D1%81%D1%80%D0%BE%D1%87%D0%BA%D0%B0%20%D1%81%20%D0%A1%D0%9F"
 // keyIuS44JJWT8ww9C
+private fun <T> ChainBuilder.withObserver(code: (Observer) -> T) {
+  val observer = getObserver(this.userId)
+  if (observer == null) {
+    handleUnknownUser()
+  } else {
+    code(observer)
+  }
+}
+
+enum class WaitingState {
+  WAITING_UIK_NUM, WAITING_OUTSIDE_VOTERS_CNT, WAITING_VOTERS_CNT, WAITING_PHOTOS, WAITING_BOX_NUM, WAITING_SAFE_NUM;
+}
