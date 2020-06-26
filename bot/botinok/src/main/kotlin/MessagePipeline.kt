@@ -46,6 +46,9 @@ open class ChainBuilder(internal val update: Update, private val sendMessage: Me
   val messageId = update.callbackQuery?.message?.messageId ?: update.message?.messageId
 
   val userId = (this.fromUser?.id ?: -1).toLong()
+  val dialogState: DialogState? by lazy {
+    this.fromUser?.getDialogState()
+  }
 
   private var replyChatId = update.message?.chatId ?: -1
 
@@ -74,7 +77,7 @@ open class ChainBuilder(internal val update: Update, private val sendMessage: Me
 
   fun onDocument(whenState: Int? = null, code: DocumentHandler) {
     this.documentHandlers += {docs ->
-      if (whenState == null || this.update?.message?.from?.getDialogState()?.state == whenState) {
+      if (whenState == null || this.dialogState?.state == whenState) {
         code(docs)
       }
     }
@@ -95,10 +98,10 @@ open class ChainBuilder(internal val update: Update, private val sendMessage: Me
     val regexp = pattern.toRegex(options)
     this.handlers += { msg ->
       regexp.matchEntire(msg.trim())?.let {
-        if (whenState == null || this.update?.message?.from?.getDialogState()?.state == whenState) {
+        if (whenState == null || this.dialogState?.state == whenState) {
           code(it)
         } else {
-          println("whenState=$whenState does not match the dialog state=${this.update?.message?.from?.getDialogState()}")
+          println("whenState=$whenState does not match the dialog state=${this.dialogState}")
         }
 
       }
