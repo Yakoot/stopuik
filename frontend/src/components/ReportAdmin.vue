@@ -43,8 +43,21 @@ import {UikType} from "@/components/Model";
         </el-alert>
         <el-form v-if="authState === 0" ref="form" :model="form" :rules="validationRules" label-width="20em" v-loading="isLoading" size="medium">
             <el-form-item>
-                <p>Здесь можно регистрировать новые нарушения, <b>совершенные в 2019 году</b>. Они сразу же записываются в базу данных и становятся
+                <p>Здесь можно регистрировать нарушения, <b>совершенные в 2018-2020 годах</b>. Они сразу же записываются в базу данных и становятся
                     публично доступны. Не забывайте <b>замазывать персональные данные</b> в прикрепляемых документах.</p>
+            </el-form-item>
+            <el-form-item label="Год">
+                <el-select
+                        v-model="form.year"
+                        filterable
+                        id="uik-chooser">
+                    <el-option
+                            v-for="item in allYears"
+                            :key="item"
+                            :label="item"
+                            :value="item">
+                    </el-option>
+                </el-select>
             </el-form-item>
             <el-form-item label="Избирательная комиссия">
                 <el-select
@@ -187,6 +200,7 @@ import {UikType} from "@/components/Model";
 
   interface FormData {
     reset(): void;
+    year: number;
     uik?: number;
     uikMembers?: Array<number | string>;
     crimeType?: string;
@@ -208,12 +222,14 @@ import {UikType} from "@/components/Model";
     };
 
     private form: FormData = {
+      year: 2020,
       links: [{title: "", url: "https://"}],
       reset(): void {
         this.links = [{title: "", url: "https://"}];
         this.uik = undefined;
         this.uikMembers = undefined;
         this.crimeType = undefined;
+        this.year = 2020;
       }
     };
 
@@ -227,6 +243,7 @@ import {UikType} from "@/components/Model";
     private userName = "";
     private userEmail = "";
     private isLoading = false;
+    private allYears: Array<number> = [2020, 2019, 2018];
     private allUiks: Array<UikDropdownItem> = [];
     private allUiksLoaded = false;
     private uikMembersLoaded = false;
@@ -243,7 +260,7 @@ import {UikType} from "@/components/Model";
     mounted() {
       this.login();
       this.loadUiks({
-        year: 2019
+        year: this.form.year
       });
       this.loadCrimeTypes();
       this.focusUikChooser();
@@ -388,6 +405,7 @@ import {UikType} from "@/components/Model";
         return;
       }
       const query: CreateCrimeRequest = {
+        year: this.form.year,
         uik: this.form.uik,
         uikMembers: this.form.uikMembers.filter(it => typeof it === "number") as Array<number>,
         newUikMembers: this.newUikMembers,
@@ -428,7 +446,7 @@ import {UikType} from "@/components/Model";
       this.form.uikMembers = [];
       this.loadUikMembers({
         uik: this.form.uik || 0,
-        year: 2019
+        year: this.form.year
       });
     }
 

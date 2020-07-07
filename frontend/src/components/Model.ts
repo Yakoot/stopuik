@@ -90,6 +90,7 @@ interface CreateCrimeRequestLinkItem {
 }
 
 export interface CreateCrimeRequest {
+  year: number;
   uik: number;
   uikMembers: Array<number>;
   newUikMembers: Array<UikMemberDto>;
