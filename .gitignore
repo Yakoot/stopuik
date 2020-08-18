@@ -2,6 +2,9 @@
 node_modules
 /dist
 
+# Poor-man's submodule
+bot
+
 # local env files
 .env.local
 .env.*.local

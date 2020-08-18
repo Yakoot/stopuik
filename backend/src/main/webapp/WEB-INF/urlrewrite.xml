@@ -1,0 +1,12 @@
+<urlrewrite use-query-string="false">
+    <rule>
+        <from>/login.*</from>
+        <to>/auth.html</to>
+        <set type="content-type">text/html</set>
+    </rule>
+    <rule>
+        <from>^/edit$</from>
+        <to>/edit.html</to>
+        <set type="content-type">text/html</set>
+    </rule>
+</urlrewrite>

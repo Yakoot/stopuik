@@ -1,18 +1,35 @@
 <template>
-  <el-collapse-item class="person">
+  <el-collapse-item class="person" :name="item.id">
     <template slot="title">
-      <div class="name-item">
-        <div class="name">{{ item.name }}</div>
-        <div v-if="item.current_status" class="status"><span class="status-year">Сейчас: </span>{{getStatusString(item.current_status)}}
-          <el-tooltip v-if="item.current_status.from" class="current-from" :content="item.current_status.from" placement="top">
-            <i class="el-icon-info"></i>
-          </el-tooltip>
+      <el-card shadow="hover" class="name-item">
+        <div slot="header" class="clearfix">
+          <span class="name">{{item.name}}</span>
         </div>
-        <div v-for="(status, index) in [...item.old_status].reverse()" :key="index" class="status"><span class="status-year">{{status.year}}: </span>{{getStatusString(status)}}</div>
-      </div>
+        <div v-for="status in item.status">
+          <el-row class="status">
+            <el-col :span="4" class="status-year">{{status.year}}</el-col>
+            <el-col :span="20">{{getStatusString(status)}}</el-col>
+          </el-row>
+          <el-row class="status-managing">
+            <el-col :span="20" :offset="4">{{getManagingUikString(status)}}</el-col>
+          </el-row>
+        </div>
+      </el-card>
+<!--      <div class="name-item">-->
+<!--        <div class="name">{{ item.name }}</div>-->
+<!--        <div v-for="status in item.status">-->
+<!--          <el-row class="status">-->
+<!--            <el-col :span="4" class="status-year">{{status.year}}</el-col>-->
+<!--            <el-col :span="20">{{getStatusString(status)}}</el-col>-->
+<!--          </el-row>-->
+<!--          <el-row class="status-managing">-->
+<!--            <el-col :span="20" :offset="4">{{getManagingUikString(status)}}</el-col>-->
+<!--          </el-row>-->
+<!--        </div>-->
+<!--      </div>-->
     </template>
     <i class="el-icon-caret-top"></i>
-    <div v-for="(yearViolations, year) in violations" :key="year" class="violations">
+    <div v-for="(yearViolations, year) in item.violations" :key="year" class="violations">
       <div class="violations-title">Нарушения за {{year}} год</div>
       <el-collapse v-model="activeViolations">
         <div
@@ -34,34 +51,38 @@
     </div>
   </el-collapse-item>
 </template>
-<script>
-  export default {
-    data() {
-      return {
-        activeViolations: []
+<script lang="ts">
+  import {Prop, Vue, Watch} from "vue-property-decorator";
+  import {Component} from "vue-property-decorator";
+  import {AllUiksResponseItem, Crime, formatUikLabel, SearchResult, UikMemberStatus} from "./Model";
+
+  @Component
+ export default class NamedItem extends Vue {
+    private activeViolations = [];
+
+    @Prop(Object) item: SearchResult | undefined;
+
+    getStatusString(status: UikMemberStatus): string {
+      let str = "";
+      if (status.uik_status) {
+        str += `${status.uik_status} `;
       }
-    },
-    props: ["item"],
-    methods: {
-      getStatusString(status) {
-        let str = "";
-        if (status.uik_status) {
-          str += `${status.uik_status}`;
-        }
-        if (status.uik) {
-          str += ` УИК ${status.uik},`;
-        }
-        if (status.tik) {
-          str += ` ТИК ${status.tik}`;
-        }
-        return str;
+      if (status.uik) {
+        str += formatUikLabel(window.allManagingUiks[status.uik] as AllUiksResponseItem);
       }
-    },
-    computed: {
-      violations() {
-        return this.item.violations;
+      return str;
+    }
+
+    getManagingUikString(status: UikMemberStatus): string {
+      if (status.tik) {
+        return formatUikLabel(window.allManagingUiks[status.tik] as AllUiksResponseItem)
+      } else {
+        return "";
       }
     }
+    // get violations(): {[key: string]: Array<Crime>} {
+    //   return this.item!!.violations;
+    // }
   };
 </script>
 <style lang="scss">
@@ -79,20 +100,38 @@
   }
 
   .name-item {
+    border: none !important;
+    padding: 20px;
+    width: 100%;
     line-height: normal;
+
+    .el-card__header {
+      padding: 0;
+      border-bottom: none;
+    }
+    .el-card__body {
+      padding: 0;
+    }
   }
   .name {
     color: $color-brick;
-    font-size: 16px;
+    font-size: 110%;
     line-height: 1.25;
   }
   .status {
     color: #9b9b9b;
-    font-size: 12px;
+    font-size: 100%;
     line-height: 1.5;
     .status-year {
       font-weight: bold;
+      text-align: right;
+      padding-right: 0.5em;
     }
+  }
+  .status-managing {
+    color: #9b9b9b;
+    font-size: 80%;
+    line-height: 1.5;
   }
   .violations {
     padding: 20px;
@@ -105,7 +144,7 @@
   }
 
   .person {
-    width: 300px;
+    width: 100%;
     margin-bottom: 20px !important;
     > .el-collapse-item__wrap {
       > .el-collapse-item__content {
